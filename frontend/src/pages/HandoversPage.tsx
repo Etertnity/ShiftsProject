@@ -160,6 +160,11 @@ const HandoversPage: React.FC = () => {
     setShowModal(true);
   };
 
+  const formatMoscow = (iso: string) => {
+    const normalized = iso.endsWith('Z') ? iso : `${iso}Z`;
+    return new Date(normalized).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+  };
+
   const handleCreateHandover = async (data: CreateHandover) => {
     try {
       const handoverData = {
@@ -372,6 +377,21 @@ const HandoversPage: React.FC = () => {
                 >
                   Редактировать
                 </button>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm('Удалить эту запись передачи смены?')) return;
+                    try {
+                      await handoversApi.delete(handover.id);
+                      toast.success('Запись удалена');
+                      loadData();
+                    } catch (e) {
+                      toast.error('Не удалось удалить запись');
+                    }
+                  }}
+                  className="text-red-600 hover:text-red-800 text-sm"
+                >
+                  Удалить
+                </button>
               </div>
             </div>
 
@@ -403,31 +423,39 @@ const HandoversPage: React.FC = () => {
               <h4 className="font-medium text-gray-900 mb-2">
                 Активы ({handover.assets.length})
               </h4>
-              <div className="grid gap-2">
-                {handover.assets.map((asset) => (
-                  <div
-                    key={asset.id}
-                    onClick={() => openAssetDetail(asset)}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-gray-900">{asset.title}</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)}`}>
-                          {asset.status === 'Active' ? 'Активен' : 
-                           asset.status === 'Completed' ? 'Завершён' : 
-                           asset.status === 'On Hold' ? 'На удержании' : asset.status}
-                        </span>
+              <div className="grid gap-3">
+                {[
+                  { label: 'CASE', key: 'CASE', ring: 'ring-blue-300', badge: 'bg-blue-100 text-blue-700' },
+                  { label: 'Обращения', key: 'CLIENT_REQUESTS', ring: 'ring-green-300', badge: 'bg-green-100 text-green-700' },
+                  { label: 'Orange CASE', key: 'ORANGE_CASE', ring: 'ring-orange-300', badge: 'bg-orange-100 text-orange-700' },
+                  { label: 'Change Management', key: 'CHANGE_MANAGEMENT', ring: 'ring-purple-300', badge: 'bg-purple-100 text-purple-700' },
+                ].map((grp) => (
+                  <div key={grp.key}>
+                    <div className="text-sm font-semibold text-gray-700 mb-2">{grp.label}</div>
+                    {handover.assets.filter(a => a.asset_type === (grp.key as any)).map((asset) => (
+                      <div
+                        key={asset.id}
+                        onClick={() => openAssetDetail(asset)}
+                        className={`flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors ring-2 ${grp.ring}`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-gray-900 break-words">{asset.title}</span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)} ${grp.badge}`}>
+                              {asset.status === 'Active' ? 'Активен' : asset.status === 'Completed' ? 'Завершён' : 'На удержании'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 break-words whitespace-pre-wrap">
+                            {asset.description.length > 100 
+                              ? `${asset.description.substring(0, 100)}...` 
+                              : asset.description}
+                          </p>
+                          <span className="text-xs text-gray-500">
+                            {getAssetTypeDisplay(asset.asset_type)}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600 break-words whitespace-pre-wrap">
-                        {asset.description.length > 100 
-                          ? `${asset.description.substring(0, 100)}...` 
-                          : asset.description}
-                      </p>
-                      <span className="text-xs text-gray-500">
-                        {getAssetTypeDisplay(asset.asset_type)}
-                      </span>
-                    </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -435,7 +463,7 @@ const HandoversPage: React.FC = () => {
 
             {/* Created Date */}
             <div className="text-xs text-gray-500">
-              Создано: {new Date(handover.created_at).toLocaleString('ru-RU')}
+              Создано: {formatMoscow(handover.created_at)}
             </div>
           </div>
         ))}
@@ -529,32 +557,40 @@ const HandoversPage: React.FC = () => {
               {/* Asset Selection */}
               <div className="mb-6">
                 <label className="block text-sm font-medium mb-2">Выберите активы</label>
-                <div className="max-h-48 overflow-y-auto border rounded-lg p-3">
-                  {assets.filter(asset => asset.status !== 'Completed').map((asset) => (
-                    <div
-                      key={asset.id}
-                      className={`flex items-center p-2 rounded-lg mb-2 cursor-pointer transition-colors ${
-                        selectedAssets.includes(asset.id) 
-                          ? 'bg-blue-100 border-blue-300' 
-                          : 'bg-gray-50 hover:bg-gray-100'
-                      }`}
-                      onClick={() => toggleAssetSelection(asset.id)}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedAssets.includes(asset.id)}
-                        onChange={() => toggleAssetSelection(asset.id)}
-                        className="mr-3"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{asset.title}</div>
-                        <div className="text-xs text-gray-600">{getAssetTypeDisplay(asset.asset_type)}</div>
-                      </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)}`}>
-                        {asset.status === 'Active' ? 'Активен' : 
-                         asset.status === 'Completed' ? 'Завершён' : 
-                         asset.status === 'On Hold' ? 'На удержании' : asset.status}
-                      </span>
+                <div className="max-h-64 overflow-y-auto border rounded-lg p-3 space-y-4">
+                  {[
+                    { label: 'CASE', color: 'border-blue-300', badge: 'bg-blue-100 text-blue-700' },
+                    { label: 'Обращения', key: 'CLIENT_REQUESTS', color: 'border-green-300', badge: 'bg-green-100 text-green-700' },
+                    { label: 'Orange CASE', key: 'ORANGE_CASE', color: 'border-orange-300', badge: 'bg-orange-100 text-orange-700' },
+                    { label: 'Change Management', key: 'CHANGE_MANAGEMENT', color: 'border-purple-300', badge: 'bg-purple-100 text-purple-700' },
+                  ].map((grp) => (
+                    <div key={grp.key || 'CASE'}>
+                      <div className="text-sm font-semibold text-gray-700 mb-2">{grp.label}</div>
+                      {(assets.filter(a => a.status !== 'Completed' && (
+                        (grp.key ? a.asset_type === (grp.key as any) : a.asset_type === 'CASE')
+                      ))).map((asset) => (
+                        <div
+                          key={asset.id}
+                          className={`flex items-center p-2 rounded-lg mb-2 cursor-pointer transition-colors border ${
+                            selectedAssets.includes(asset.id) ? grp.color + ' bg-white' : 'bg-gray-50 hover:bg-gray-100'
+                          }`}
+                          onClick={() => toggleAssetSelection(asset.id)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedAssets.includes(asset.id)}
+                            onChange={() => toggleAssetSelection(asset.id)}
+                            className="mr-3"
+                          />
+                          <div className="flex-1">
+                            <div className="font-medium text-sm break-words">{asset.title}</div>
+                            <div className="text-xs text-gray-600 break-words">{getAssetTypeDisplay(asset.asset_type)}</div>
+                          </div>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)} ${grp.badge}`}>
+                            {asset.status === 'Active' ? 'Активен' : asset.status === 'Completed' ? 'Завершён' : 'На удержании'}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
@@ -615,7 +651,7 @@ const HandoversPage: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Создан</label>
                 <p className="text-gray-600 text-sm">
-                  {new Date(selectedAssetDetail.created_at).toLocaleString('ru-RU')}
+                  {formatMoscow(selectedAssetDetail.created_at)}
                 </p>
               </div>
             </div>

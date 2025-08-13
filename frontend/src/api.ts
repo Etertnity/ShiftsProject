@@ -84,6 +84,7 @@ export const handoversApi = {
     api.post('/api/handovers/', handover).then(res => res.data),
   update: (id: number, handover: CreateHandover): Promise<Handover> => 
     api.put(`/api/handovers/${id}`, handover).then(res => res.data),
+  delete: (id: number): Promise<void> => api.delete(`/api/handovers/${id}`).then(() => {}),
   export: (): Promise<any> => api.get('/api/handovers/export').then(res => res.data),
   clear: (): Promise<{message: string, deleted_count: number}> => 
     api.delete('/api/handovers/clear').then(res => res.data),

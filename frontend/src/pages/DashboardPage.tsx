@@ -20,9 +20,21 @@ const DashboardPage: React.FC = () => {
     loadDashboardData();
   }, []);
 
+  // Время в МСК: используем абсолютное время и смещаем расчёты на +03:00
+  const MSK_OFFSET_MS = 3 * 60 * 60 * 1000;
+  const nowMoscow = (): Date => new Date();
+  const toMskDateString = (date: Date): string => {
+    const d = new Date(date.getTime() + MSK_OFFSET_MS);
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+  };
+  const mskDateTime = (dateStr: string, timeStr: string): Date => new Date(`${dateStr}T${timeStr}:00+03:00`);
+
   // Функция для определения статуса смены
   const getShiftStatus = (shift: Shift) => {
-    const now = new Date();
+    const now = nowMoscow();
     const shiftDate = new Date(shift.date);
     const [startHour, startMinute] = shift.start_time.split(':').map(Number);
     const [endHour, endMinute] = shift.end_time.split(':').map(Number);
@@ -62,13 +74,16 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  // Дата в МСК в формате YYYY-MM-DD
+  const toLocalDateString = (d: Date) => toMskDateString(d);
+
   // Функция для получения следующих смен
   const getNextShifts = (allShifts: Shift[]) => {
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const now = nowMoscow();
+    const today = toLocalDateString(now);
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const tomorrowStr = toLocalDateString(tomorrow);
 
     // Получаем все смены на сегодня и завтра
     const todayAndTomorrowShifts = allShifts.filter(shift => 
@@ -76,18 +91,11 @@ const DashboardPage: React.FC = () => {
     );
 
     // Фильтруем будущие смены и сортируем по времени
-    const futureShifts = todayAndTomorrowShifts.filter(shift => {
-      const shiftDate = new Date(shift.date);
-      const [startHour, startMinute] = shift.start_time.split(':').map(Number);
-      const shiftStart = new Date(shiftDate);
-      shiftStart.setHours(startHour, startMinute, 0, 0);
-      
-      return shiftStart > now;
-    }).sort((a, b) => {
-      const dateA = new Date(`${a.date} ${a.start_time}`);
-      const dateB = new Date(`${b.date} ${b.start_time}`);
-      return dateA.getTime() - dateB.getTime();
-    });
+    const futureShifts = todayAndTomorrowShifts
+      .map(s => ({ s, start: mskDateTime(s.date, s.start_time.padStart(5, '0')) }))
+      .filter(x => x.start.getTime() > now.getTime())
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+      .map(x => x.s);
 
     return futureShifts.slice(0, 5); // Показываем только 5 ближайших
   };
@@ -95,33 +103,58 @@ const DashboardPage: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const today = new Date().toISOString().split('T')[0];
-      
-      const [shifts, users, handovers, todayShiftsData, assets] = await Promise.all([
-        shiftsApi.getAll(),
+      const now = nowMoscow();
+      const today = toLocalDateString(now);
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = toLocalDateString(yesterday);
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = toLocalDateString(tomorrow);
+  
+      const [users, handovers, allShiftsRaw, assets] = await Promise.all([
         usersApi.getAllPublic(),
         handoversApi.getAll(),
-        shiftsApi.getAll(today),
+        shiftsApi.getAll(),
         assetsApi.getAll()
       ]);
+  
+      // Используем полный список смен (надёжнее, чем фильтровать на сервере по дате)
+      const allShifts = allShiftsRaw || [];
+      
+      // Фильтруем только активные смены
+      const activeShifts = allShifts.filter(shift => {
+        const status = getShiftStatus(shift);
+        return status === 'активна';
+      });
 
-      // Фильтруем активные кейсы (CASE и ORANGE_CASE со статусом Active)
-      const activeAssets = assets.filter(asset => 
-        (asset.asset_type === 'CASE' || asset.asset_type === 'ORANGE_CASE') && 
-        asset.status === 'Active'
-      );
+      // Смены сегодня (показываем все сегодняшние смены, не только активные)
+      const startOfToday = mskDateTime(today, '00:00');
+      const endOfToday = mskDateTime(today, '23:59');
 
+      const isShiftIntersectingToday = (s: Shift): boolean => {
+        const start = mskDateTime(s.date, s.start_time.padStart(5, '0'));
+        let end = mskDateTime(s.date, s.end_time.padStart(5, '0'));
+        if (end.getTime() <= start.getTime()) end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+        return end >= startOfToday && start <= endOfToday;
+      };
+
+      const todaysShifts = allShifts.filter(isShiftIntersectingToday);
+  
+      // Фильтруем активные кейсы (все типы считаем кейсами)
+      const activeAssets = assets.filter(asset => asset.status === 'Active');
+  
       setStats({
-        todayShifts: todayShiftsData.length,
+        todayShifts: todaysShifts.length,
         totalUsers: users.length,
         activeCases: activeAssets.length,
         totalHandovers: handovers.length
       });
-
-      setTodayShifts(todayShiftsData.slice(0, 5));
+  
+      setTodayShifts(todaysShifts.slice(0, 5));
       setRecentHandovers(handovers.slice(0, 5));
       setActiveCases(activeAssets.slice(0, 5));
-      setNextShifts(getNextShifts(shifts));
+      setNextShifts(getNextShifts(allShifts));
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -282,9 +315,13 @@ const DashboardPage: React.FC = () => {
                     {asset.description?.substring(0, 80)}
                     {(asset.description?.length || 0) > 80 ? '...' : ''}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(asset.created_at).toLocaleDateString('ru-RU')}
-                  </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {(() => {
+                const iso = asset.created_at;
+                const normalized = iso.endsWith('Z') ? iso : `${iso}Z`;
+                return new Date(normalized).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
+              })()}
+            </p>
                 </div>
                 <span className={`ml-3 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                   asset.asset_type === 'CASE' 

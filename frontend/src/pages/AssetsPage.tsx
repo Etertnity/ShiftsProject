@@ -4,6 +4,10 @@ import { assetsApi } from '../api.ts';
 import { Asset, CreateAsset } from '../types';
 
 export default function AssetsPage() {
+  const formatMoscow = (iso: string) => {
+    const normalized = iso.endsWith('Z') ? iso : `${iso}Z`;
+    return new Date(normalized).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+  };
   const [assets, setAssets] = useState<Asset[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -174,7 +178,12 @@ export default function AssetsPage() {
       ) : (
         <div className="grid gap-4">
           {assets.map((asset) => (
-            <div key={asset.id} className="border rounded-lg p-4 bg-white shadow-sm overflow-hidden">
+            <div key={asset.id} className={`border rounded-lg p-4 bg-white shadow-sm overflow-hidden ${
+              asset.asset_type === 'CASE' ? 'ring-2 ring-blue-300' :
+              asset.asset_type === 'CLIENT_REQUESTS' ? 'ring-2 ring-green-300' :
+              asset.asset_type === 'ORANGE_CASE' ? 'ring-2 ring-orange-300' :
+              asset.asset_type === 'CHANGE_MANAGEMENT' ? 'ring-2 ring-purple-300' : ''
+            }`}>
               <div className="flex justify-between items-start mb-2">
                 <h3 className="text-lg font-semibold break-words flex-1 pr-2 min-w-0">{asset.title}</h3>
                 <div className="flex gap-2 flex-shrink-0">
@@ -211,12 +220,17 @@ export default function AssetsPage() {
                    asset.status === 'Completed' ? 'Завершён' : 
                    asset.status === 'On Hold' ? 'На удержании' : asset.status}
                 </span>
-                <span className="text-sm text-gray-500">
+                <span className={`text-sm px-2 py-0.5 rounded-full ${
+                  asset.asset_type === 'CASE' ? 'bg-blue-100 text-blue-700' :
+                  asset.asset_type === 'CLIENT_REQUESTS' ? 'bg-green-100 text-green-700' :
+                  asset.asset_type === 'ORANGE_CASE' ? 'bg-orange-100 text-orange-700' :
+                  'bg-purple-100 text-purple-700'
+                }`}>
                   {getTypeDisplay(asset.asset_type)}
                 </span>
               </div>
               <div className="text-xs text-gray-400 mt-2">
-                Создан: {new Date(asset.created_at).toLocaleString('ru-RU')}
+                Создан: {formatMoscow(asset.created_at)}
               </div>
             </div>
           ))}
