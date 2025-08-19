@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Edit, Trash2, Filter } from 'lucide-react';
+import { Plus, Edit, Trash2, Filter, Maximize2, X } from 'lucide-react';
 import { assetsApi } from '../api.ts';
 import { Asset, CreateAsset } from '../types';
 
@@ -12,9 +12,11 @@ export default function AssetsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [fullscreenAsset, setFullscreenAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(false);
   const [filterType, setFilterType] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [formData, setFormData] = useState<CreateAsset>({
     title: '',
     description: '',
@@ -28,6 +30,7 @@ export default function AssetsPage() {
       const params = new URLSearchParams();
       if (filterType) params.append('asset_type', filterType);
       if (filterStatus) params.append('status', filterStatus);
+      if (searchQuery) params.append('search', searchQuery);
       
       const data = await assetsApi.getAll(params.toString());
       setAssets(data);
@@ -36,7 +39,7 @@ export default function AssetsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterType, filterStatus]);
+  }, [filterType, filterStatus, searchQuery]);
 
   useEffect(() => {
     loadAssets();
@@ -146,30 +149,51 @@ export default function AssetsPage() {
         </button>
       </div>
 
-      {/* Фильтры */}
-      <div className="mb-6 flex gap-4 items-center">
-        <Filter size={20} className="text-gray-400" />
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="border rounded-lg px-3 py-2"
-        >
-          <option value="">Все типы</option>
-          <option value="CASE">CASE</option>
-          <option value="CHANGE_MANAGEMENT">Change Management</option>
-          <option value="ORANGE_CASE">Orange CASE</option>
-          <option value="CLIENT_REQUESTS">Обращения клиентов</option>
-        </select>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="border rounded-lg px-3 py-2"
-        >
-          <option value="">Все статусы</option>
-          <option value="Active">Активен</option>
-          <option value="Completed">Завершён</option>
-          <option value="On Hold">На удержании</option>
-        </select>
+      {/* Поиск и фильтры */}
+      <div className="mb-6 space-y-4">
+        {/* Поиск по названию */}
+        <div className="flex gap-4 items-center">
+          <div className="flex-1 max-w-md relative">
+            <input
+              type="text"
+              placeholder="Поиск по названию актива..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+        
+        {/* Фильтры */}
+        <div className="flex gap-4 items-center">
+          <Filter size={20} className="text-gray-400" />
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="border rounded-lg px-3 py-2"
+          >
+            <option value="">Все типы</option>
+            <option value="CASE">CASE</option>
+            <option value="CHANGE_MANAGEMENT">Change Management</option>
+            <option value="ORANGE_CASE">Orange CASE</option>
+            <option value="CLIENT_REQUESTS">Обращения клиентов</option>
+          </select>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="border rounded-lg px-3 py-2"
+          >
+            <option value="">Все статусы</option>
+            <option value="Active">Активен</option>
+            <option value="Completed">Завершён</option>
+            <option value="On Hold">На удержании</option>
+          </select>
+        </div>
       </div>
 
       {/* Список активов */}
@@ -188,6 +212,13 @@ export default function AssetsPage() {
                 <h3 className="text-lg font-semibold break-words flex-1 pr-2 min-w-0">{asset.title}</h3>
                 <div className="flex gap-2 flex-shrink-0">
                   <button
+                    onClick={() => setFullscreenAsset(asset)}
+                    className="text-gray-600 hover:text-gray-800"
+                    title="Развернуть"
+                  >
+                    <Maximize2 size={16} />
+                  </button>
+                  <button
                     onClick={() => openEditModal(asset)}
                     className="text-blue-600 hover:text-blue-800"
                   >
@@ -202,15 +233,7 @@ export default function AssetsPage() {
                 </div>
               </div>
               <p 
-                className="text-gray-600 mb-3" 
-                style={{ 
-                  wordWrap: 'break-word', 
-                  overflowWrap: 'anywhere', 
-                  wordBreak: 'break-all',
-                  whiteSpace: 'pre-wrap',
-                  maxWidth: '100%',
-                  width: '100%'
-                }}
+                className="text-gray-600 mb-3 text-wrap-force"
               >
                 {asset.description}
               </p>
@@ -239,8 +262,8 @@ export default function AssetsPage() {
 
       {/* Модальное окно создания */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+          <div className="bg-white rounded-lg p-6 w-full max-w-none resizable-modal modal-panel">
             <h2 className="text-xl font-bold mb-4">Создать актив</h2>
             <form onSubmit={handleCreateAsset}>
               <div className="mb-4">
@@ -258,7 +281,7 @@ export default function AssetsPage() {
                 <textarea
                   required
                   rows={4}
-                  className="w-full border rounded-lg px-3 py-2 textarea-wrap"
+                  className="w-full border rounded-lg px-3 py-2 textarea-wrap resize-vertical"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
@@ -313,8 +336,8 @@ export default function AssetsPage() {
 
       {/* Модальное окно редактирования */}
       {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+          <div className="bg-white rounded-lg p-6 w-full max-w-none resizable-modal modal-panel">
             <h2 className="text-xl font-bold mb-4">Редактировать актив</h2>
             <form onSubmit={handleUpdateAsset}>
               <div className="mb-4">
@@ -332,7 +355,7 @@ export default function AssetsPage() {
                 <textarea
                   required
                   rows={4}
-                  className="w-full border rounded-lg px-3 py-2 textarea-wrap"
+                  className="w-full border rounded-lg px-3 py-2 textarea-wrap resize-vertical"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
@@ -381,6 +404,23 @@ export default function AssetsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Полноэкранный просмотр актива */}
+      {fullscreenAsset && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 modal-overlay">
+          <div className="bg-white rounded-lg p-6 w-full max-w-none max-h-[85vh] overflow-y-auto resizable-modal modal-panel">
+            <div className="flex items-start justify-between mb-4">
+              <h2 className="text-xl font-bold pr-4 break-words">{fullscreenAsset.title}</h2>
+              <button className="text-gray-600 hover:text-gray-800" onClick={() => setFullscreenAsset(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="prose max-w-none">
+              <p className="text-gray-700 text-wrap-force">{fullscreenAsset.description}</p>
+            </div>
           </div>
         </div>
       )}

@@ -576,6 +576,7 @@ async def create_asset(asset: AssetCreate, db: Session = Depends(get_db), curren
 async def get_assets(
     asset_type: Optional[str] = None,
     status: Optional[str] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -584,6 +585,8 @@ async def get_assets(
         query = query.filter(Asset.asset_type == asset_type)
     if status:
         query = query.filter(Asset.status == status)
+    if search:
+        query = query.filter(Asset.title.ilike(f"%{search}%"))
     return query.all()
 
 @app.get("/api/assets/{asset_id}", response_model=AssetResponse)

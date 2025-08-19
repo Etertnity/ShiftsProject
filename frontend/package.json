@@ -27,7 +27,7 @@
     "react-hot-toast": "^2.4.1"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "set NODE_OPTIONS=--no-deprecation&& set HOST=127.0.0.1&& set DANGEROUSLY_DISABLE_HOST_CHECK=true&& react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

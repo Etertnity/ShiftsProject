@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Users, ArrowRightLeft, Clock, AlertCircle } from 'lucide-react';
 import { shiftsApi, usersApi, handoversApi, assetsApi } from '../api.ts';
-import { Shift, Handover, Asset } from '../types';
+import { Shift, Asset } from '../types';
 
 const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState({
@@ -11,13 +11,65 @@ const DashboardPage: React.FC = () => {
     totalHandovers: 0
   });
   const [todayShifts, setTodayShifts] = useState<Shift[]>([]);
-  const [recentHandovers, setRecentHandovers] = useState<Handover[]>([]);
+  // const [recentHandovers, setRecentHandovers] = useState<Handover[]>([]);
   const [activeCases, setActiveCases] = useState<Asset[]>([]);
   const [nextShifts, setNextShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    loadDashboardData();
+    const load = async () => {
+      try {
+        setLoading(true);
+        const now = nowMoscow();
+        const today = toLocalDateString(now);
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        // const yesterdayStr = toLocalDateString(yesterday);
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        // const tomorrowStr = toLocalDateString(tomorrow);
+
+        const [users, handovers, allShiftsRaw, assets] = await Promise.all([
+          usersApi.getAllPublic(),
+          handoversApi.getAll(),
+          shiftsApi.getAll(),
+          assetsApi.getAll()
+        ]);
+
+        const allShifts = allShiftsRaw || [];
+
+        const startOfToday = mskDateTime(today, '00:00');
+        const endOfToday = mskDateTime(today, '23:59');
+
+        const isShiftIntersectingToday = (s: Shift): boolean => {
+          const start = mskDateTime(s.date, s.start_time.padStart(5, '0'));
+          let end = mskDateTime(s.date, s.end_time.padStart(5, '0'));
+          if (end.getTime() <= start.getTime()) end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+          return end >= startOfToday && start <= endOfToday;
+        };
+
+        const todaysShifts = allShifts.filter(isShiftIntersectingToday);
+
+        const activeAssets = assets.filter(asset => asset.status === 'Active');
+
+        setStats({
+          todayShifts: todaysShifts.length,
+          totalUsers: users.length,
+          activeCases: activeAssets.length,
+          totalHandovers: handovers.length
+        });
+
+        setTodayShifts(todaysShifts.slice(0, 5));
+        setActiveCases(activeAssets.slice(0, 5));
+        setNextShifts(getNextShifts(allShifts));
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
   // Время в МСК: используем абсолютное время и смещаем расчёты на +03:00
@@ -75,10 +127,10 @@ const DashboardPage: React.FC = () => {
   };
 
   // Дата в МСК в формате YYYY-MM-DD
-  const toLocalDateString = (d: Date) => toMskDateString(d);
+  const toLocalDateString = useCallback((d: Date) => toMskDateString(d), []);
 
   // Функция для получения следующих смен
-  const getNextShifts = (allShifts: Shift[]) => {
+  const getNextShifts = useCallback((allShifts: Shift[]) => {
     const now = nowMoscow();
     const today = toLocalDateString(now);
     const tomorrow = new Date(now);
@@ -98,69 +150,9 @@ const DashboardPage: React.FC = () => {
       .map(x => x.s);
 
     return futureShifts.slice(0, 5); // Показываем только 5 ближайших
-  };
+  }, [toLocalDateString]);
 
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      const now = nowMoscow();
-      const today = toLocalDateString(now);
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = toLocalDateString(yesterday);
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowStr = toLocalDateString(tomorrow);
   
-      const [users, handovers, allShiftsRaw, assets] = await Promise.all([
-        usersApi.getAllPublic(),
-        handoversApi.getAll(),
-        shiftsApi.getAll(),
-        assetsApi.getAll()
-      ]);
-  
-      // Используем полный список смен (надёжнее, чем фильтровать на сервере по дате)
-      const allShifts = allShiftsRaw || [];
-      
-      // Фильтруем только активные смены
-      const activeShifts = allShifts.filter(shift => {
-        const status = getShiftStatus(shift);
-        return status === 'активна';
-      });
-
-      // Смены сегодня (показываем все сегодняшние смены, не только активные)
-      const startOfToday = mskDateTime(today, '00:00');
-      const endOfToday = mskDateTime(today, '23:59');
-
-      const isShiftIntersectingToday = (s: Shift): boolean => {
-        const start = mskDateTime(s.date, s.start_time.padStart(5, '0'));
-        let end = mskDateTime(s.date, s.end_time.padStart(5, '0'));
-        if (end.getTime() <= start.getTime()) end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
-        return end >= startOfToday && start <= endOfToday;
-      };
-
-      const todaysShifts = allShifts.filter(isShiftIntersectingToday);
-  
-      // Фильтруем активные кейсы (все типы считаем кейсами)
-      const activeAssets = assets.filter(asset => asset.status === 'Active');
-  
-      setStats({
-        todayShifts: todaysShifts.length,
-        totalUsers: users.length,
-        activeCases: activeAssets.length,
-        totalHandovers: handovers.length
-      });
-  
-      setTodayShifts(todaysShifts.slice(0, 5));
-      setRecentHandovers(handovers.slice(0, 5));
-      setActiveCases(activeAssets.slice(0, 5));
-      setNextShifts(getNextShifts(allShifts));
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const StatCard: React.FC<{
     title: string;
@@ -236,7 +228,7 @@ const DashboardPage: React.FC = () => {
           <div className="space-y-3">
             {todayShifts.length > 0 ? (
               todayShifts.map((shift) => {
-                const status = getShiftStatus(shift);
+                const status = getShiftStatus(shift); // eslint-disable-line @typescript-eslint/no-unused-vars
                 return (
                   <div key={shift.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
@@ -269,7 +261,7 @@ const DashboardPage: React.FC = () => {
           <div className="space-y-3">
             {nextShifts.length > 0 ? (
               nextShifts.map((shift) => {
-                const status = getShiftStatus(shift);
+                const status = getShiftStatus(shift); // eslint-disable-line @typescript-eslint/no-unused-vars
                 const isToday = shift.date === new Date().toISOString().split('T')[0];
                 return (
                   <div key={shift.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">

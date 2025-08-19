@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Download, Trash2 } from 'lucide-react';
+import { Plus, Download, Trash2, Maximize2, X } from 'lucide-react';
 import { handoversApi, shiftsApi, assetsApi } from '../api.ts';
 import { Handover, Shift, Asset, CreateHandover } from '../types';
 import { useForm } from 'react-hook-form';
@@ -15,6 +15,7 @@ const HandoversPage: React.FC = () => {
   const [selectedAssets, setSelectedAssets] = useState<number[]>([]);
   const [showAssetDetail, setShowAssetDetail] = useState(false);
   const [selectedAssetDetail, setSelectedAssetDetail] = useState<Asset | null>(null);
+  const [fullscreenNotes, setFullscreenNotes] = useState<string | null>(null);
 
   const [suggestedToShift, setSuggestedToShift] = useState<Shift | null>(null);
   const [selectedActiveShift, setSelectedActiveShift] = useState<Shift | null>(null);
@@ -413,9 +414,17 @@ const HandoversPage: React.FC = () => {
             {/* Handover Notes */}
             <div className="mb-4">
               <h4 className="font-medium text-gray-900 mb-2">Заметки по передаче:</h4>
-              <p className="text-gray-600 whitespace-pre-wrap break-words text-wrap-force">
-                {handover.handover_notes}
-              </p>
+              <div className="relative">
+                <p className="text-gray-600 whitespace-pre-wrap break-words text-wrap-force line-clamp-5">
+                  {handover.handover_notes}
+                </p>
+                <button
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  onClick={() => setFullscreenNotes(handover.handover_notes)}
+                >
+                  <Maximize2 size={16} /> Открыть
+                </button>
+              </div>
             </div>
 
             {/* Assets */}
@@ -471,8 +480,8 @@ const HandoversPage: React.FC = () => {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-96 overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+          <div className="bg-white rounded-lg p-6 w-full max-w-none overflow-auto resizable-modal modal-panel modal-wide">
             <h2 className="text-xl font-bold mb-4">
               {editingHandover ? 'Редактировать передачу смены' : 'Записать смену'}
             </h2>
@@ -539,7 +548,7 @@ const HandoversPage: React.FC = () => {
                 <textarea
                   {...register('handover_notes', { required: 'Заметки обязательны' })}
                   rows={4}
-                  className="w-full border rounded-lg px-3 py-2 textarea-wrap"
+                  className="w-full border rounded-lg px-3 py-2 textarea-wrap resize-vertical"
                   style={{ 
                     wordWrap: 'break-word', 
                     overflowWrap: 'break-word', 
@@ -622,8 +631,8 @@ const HandoversPage: React.FC = () => {
 
       {/* Asset Detail Modal */}
       {showAssetDetail && selectedAssetDetail && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+          <div className="bg-white rounded-lg p-6 w-full max-w-none resizable-modal modal-panel">
             <h2 className="text-xl font-bold mb-4">Детали актива</h2>
             <div className="space-y-4">
               <div>
@@ -663,6 +672,21 @@ const HandoversPage: React.FC = () => {
                 Закрыть
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Полноэкранный просмотр заметок */}
+      {fullscreenNotes && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 modal-overlay">
+          <div className="bg-white rounded-lg p-6 w-full max-w-none max-h-[85vh] overflow-y-auto resizable-modal modal-panel">
+            <div className="flex items-start justify-between mb-4">
+              <h2 className="text-xl font-bold">Заметки по передаче</h2>
+              <button className="text-gray-600 hover:text-gray-800" onClick={() => setFullscreenNotes(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-gray-700 whitespace-pre-wrap break-words text-wrap-force">{fullscreenNotes}</p>
           </div>
         </div>
       )}

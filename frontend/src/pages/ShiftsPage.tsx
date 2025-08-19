@@ -349,39 +349,63 @@ const ShiftsPage: React.FC = () => {
                 </div>
 
                 {/* Смены */}
-                <div className="space-y-1">
-                  {dayShifts.map(shift => {
+                <div className="space-y-1.5">
+                  {dayShifts
+                    .sort((a, b) => {
+                      // Сортируем: дневные смены выше ночных
+                      if (a.shift_type === 'day' && b.shift_type === 'night') return -1;
+                      if (a.shift_type === 'night' && b.shift_type === 'day') return 1;
+                      return 0;
+                    })
+                    .map(shift => {
                     const user = users.find(u => u.id === shift.user_id);
                     const status = getShiftStatus(shift);
+                    const isDayShift = shift.shift_type === 'day';
                     
                     return (
                       <div
                         key={shift.id}
-                        className="text-xs p-1 rounded bg-white border border-gray-200 hover:shadow-sm"
+                        className={`text-xs p-2 rounded-lg border-2 hover:shadow-md transition-all duration-200 ${
+                          isDayShift 
+                            ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' 
+                            : 'bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200'
+                        }`}
                       >
                         <div className="flex justify-between items-start">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">
-                              {user?.name || 'Неизвестно'}
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <div className={`w-1.5 h-1.5 rounded-full ${
+                                isDayShift ? 'bg-blue-500' : 'bg-purple-500'
+                              }`}></div>
+                              <p className="font-semibold text-gray-900 text-xs leading-tight truncate">
+                                {user?.name || 'Неизвестно'}
+                              </p>
+                            </div>
+                            <p className="text-gray-700 text-xs font-medium mb-1">
+                              {shift.start_time} - {shift.end_time}
                             </p>
-                            <p className="text-gray-600">
-                              {shift.start_time}-{shift.end_time}
-                            </p>
-                            <span className={`inline-block px-1 py-0.5 text-xs rounded ${getStatusColor(status)}`}>
-                              {status}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`inline-block px-1.5 py-0.5 text-xs rounded-full font-medium ${getStatusColor(status)}`}>
+                                {status}
+                              </span>
+                              <span className={`text-xs font-medium ${
+                                isDayShift ? 'text-blue-700' : 'text-purple-700'
+                              }`}>
+                                {isDayShift ? 'День' : 'Ночь'}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex gap-1 ml-1">
+                          <div className="flex gap-0.5 ml-1">
                             <button
                               onClick={() => openEditModal(shift)}
-                              className="text-blue-600 hover:text-blue-800 p-0.5"
+                              className="text-blue-600 hover:text-blue-800 p-0.5 rounded hover:bg-blue-50 transition-colors"
                               title="Редактировать"
                             >
                               <Edit size={10} />
                             </button>
                             <button
                               onClick={() => handleDeleteShift(shift.id)}
-                              className="text-red-600 hover:text-red-800 p-0.5"
+                              className="text-red-600 hover:text-red-800 p-0.5 rounded hover:bg-red-50 transition-colors"
                               title="Удалить"
                             >
                               <Trash2 size={10} />
@@ -400,8 +424,8 @@ const ShiftsPage: React.FC = () => {
 
       {/* Модальное окно создания/редактирования смены */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+          <div className="bg-white rounded-lg p-6 w-full max-w-none resizable-modal modal-panel">
             <h2 className="text-xl font-bold mb-4">
               {editingShift ? 'Редактировать смену' : 
                isMultipleMode ? 'Создать несколько смен' : 'Создать смену'}
