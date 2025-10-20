@@ -868,7 +868,7 @@ def create_default_admin(db: Session):
         # Создаем администратора по умолчанию
         admin_user = User(
             username="Sideffect",
-            hashed_password=get_password_hash("Sid@ffect101"),
+            hashed_password=get_password_hash("admin123"),
             name="Тимофей",
             position="Тех поддержка",
             is_active=True,
@@ -876,7 +876,7 @@ def create_default_admin(db: Session):
         )
         db.add(admin_user)
         db.commit()
-        print("✅ Создан администратор по умолчанию: Sideffect / Sid@ffect101")
+        print("✅ Создан администратор по умолчанию: Sideffect / admin123")
 
 # Create tables (НЕ удаляем существующие данные!)
 # Base.metadata.drop_all(bind=engine)  # ЗАКОММЕНТИРОВАНО - не удаляем данные!

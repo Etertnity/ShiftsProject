@@ -10,6 +10,28 @@ RUN npm ci --only=production
 # Copy source code
 COPY . .
 
+# Create public directory and index.html if it doesn't exist
+RUN mkdir -p public && \
+    if [ ! -f public/index.html ]; then \
+        cat > public/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Система управления сменами и передачи смен" />
+    <title>Управление сменами</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
+EOF
+    fi
+
 # Build argument for API URL
 ARG REACT_APP_API_URL=http://localhost:8000
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
