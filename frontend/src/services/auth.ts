@@ -1,16 +1,19 @@
 import { LoginUser, AuthToken, User } from '../types';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = '';
 const TOKEN_KEY = 'access_token';
 
 export const authService = {
   async login(credentials: LoginUser): Promise<AuthToken> {
-    const response = await fetch(`${API_BASE_URL}/api/login`, {
+    const response = await fetch(`${API_BASE_URL}/api/token`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify(credentials),
+      body: new URLSearchParams({
+        username: credentials.username,
+        password: credentials.password,
+      }),
     });
 
     if (!response.ok) {
