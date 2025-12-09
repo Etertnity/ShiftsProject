@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply text-gray-900 bg-gradient-to-br from-white via-yellow-50 to-white;
   }
 }
 
@@ -22,7 +22,7 @@
   }
   
   .card {
-    @apply bg-white rounded-lg shadow-md p-6 border border-gray-200;
+    @apply bg-white/90 backdrop-blur rounded-xl shadow-lg p-6 border border-yellow-100;
   }
   /* Глобальные правила переноса текста, чтобы контент не раздувал контейнеры */
   .text-wrap-force {
