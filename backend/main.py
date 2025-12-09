@@ -21,24 +21,32 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/shifts.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/shifts.db")
 
 # Ensure data directory exists for SQLite BEFORE creating engine
 if "sqlite" in DATABASE_URL:
     # Parse the database path from the URL
+    # sqlite:///./data/shifts.db -> ./data/shifts.db
     # sqlite:////app/data/shifts.db -> /app/data/shifts.db
     db_file = DATABASE_URL.replace("sqlite:///", "")
-    # Handle case with 4 slashes
+    
+    # Convert to absolute path for directory creation
     if db_file.startswith("/"):
         db_path = db_file
     else:
-        db_path = "/" + db_file
+        # Relative path - convert to absolute
+        db_path = os.path.abspath(db_file)
     
     db_dir = os.path.dirname(db_path)
-    if db_dir and db_dir != "/":
+    if db_dir:
         try:
             Path(db_dir).mkdir(parents=True, exist_ok=True)
             print(f"✓ Database directory ensured: {db_dir}")
+        except PermissionError as e:
+            print(f"⚠ Permission denied creating {db_dir}: {e}")
+            print(f"  Will attempt to use current working directory")
+            # Fallback to relative path in current directory
+            DATABASE_URL = "sqlite:///./data/shifts.db"
         except Exception as e:
             print(f"⚠ Failed to create database directory {db_dir}: {e}")
 

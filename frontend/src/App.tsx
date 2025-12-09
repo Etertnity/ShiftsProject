@@ -11,7 +11,6 @@ import AssetsPage from './pages/AssetsPage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
 import { authService } from './services/auth.ts';
 import { LoginUser, CreateUser, User } from './types';
-import logo from './assets/tserv-logo.svg';
 
 // Навигация вынесена в отдельную функцию, чтобы не засорять основной компонент
 function Navigation({ currentUser, onLogout }: { currentUser: User | null; onLogout: () => void }) {
@@ -33,7 +32,9 @@ function Navigation({ currentUser, onLogout }: { currentUser: User | null; onLog
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-6">
             <div className="flex-shrink-0 flex items-center space-x-2">
-              <img src={logo} alt="IN-SERV" className="w-10 h-10 rounded-2xl shadow-inner border border-blue-100 bg-white" />
+              <div className="w-10 h-10 rounded-2xl shadow-inner border border-blue-100 bg-gradient-to-br from-blue-500 to-sky-500 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">IS</span>
+              </div>
               <div>
                 <p className="text-xs uppercase tracking-widest text-gray-500">In-serv</p>
                 <h1 className="text-lg font-bold text-gray-900">Shift Control</h1>
@@ -186,7 +187,7 @@ function App() {
             </div>
             <div className="hidden md:flex items-center space-x-3 text-sm text-primary-700 bg-blue-50 border border-blue-100 px-4 py-3 rounded-xl shadow-inner">
               <Sparkles className="w-4 h-4" />
-              <span>Дизайн обновлён под In-serv</span>
+              <span>In-serv</span>
             </div>
           </div>
           <Routes>

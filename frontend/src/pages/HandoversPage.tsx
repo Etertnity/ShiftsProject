@@ -1,7 +1,6 @@
 // Страница передачи смен: оставляем существующий функционал, но упрощаем повторяющиеся конструкции
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Download, Trash2, Maximize2, X } from 'lucide-react';
-import logo from '../assets/tserv-logo.svg';
+import { Plus, Trash2, Maximize2, X } from 'lucide-react';
 import { handoversApi, shiftsApi, assetsApi } from '../api.ts';
 import { Handover, Shift, Asset, CreateHandover } from '../types';
 import { useForm } from 'react-hook-form';
@@ -21,7 +20,7 @@ const assetGroups = [
     selection: 'border-sky-300',
     cardBorder: 'border-sky-200',
     focusBadge: 'border border-sky-200 text-sky-800',
-    summary: 'Какие кейсы ведём, статусы и ближайшие шаги.'
+    summary: 'Новые Case. Закрытые Case.'
   },
   {
     key: 'ORANGE_CASE',
@@ -32,7 +31,7 @@ const assetGroups = [
     selection: 'border-amber-300',
     cardBorder: 'border-amber-200',
     focusBadge: 'border border-amber-200 text-amber-800',
-    summary: 'Новые инциденты Orange и кому переданы.'
+    summary: 'Взаимодействие с Orange. Открытые Case(требуется работа). Закрытые Case(что сделано). Неотвеченные запросы.'
   },
   {
     key: 'CHANGE_MANAGEMENT',
@@ -43,7 +42,7 @@ const assetGroups = [
     selection: 'border-emerald-300',
     cardBorder: 'border-emerald-200',
     focusBadge: 'border border-emerald-200 text-emerald-800',
-    summary: 'Окна, риски, ответственные и контрольные точки.'
+    summary: ' Change management запросы..'
   },
   {
     key: 'CLIENT_REQUESTS',
@@ -54,7 +53,7 @@ const assetGroups = [
     selection: 'border-purple-300',
     cardBorder: 'border-purple-200',
     focusBadge: 'border border-purple-200 text-purple-800',
-    summary: 'Ключевые тикеты, обещания и SLA-таймеры.'
+    summary: 'Обращения клиентов. Неотвеченные письма.'
   },
 ] as const;
 
@@ -68,9 +67,9 @@ const groupAssets = (items: Asset[]) =>
 // Короткие напоминания: отдельный список, чтобы не размножать разметку
 const quickReminders = [
   'Зафиксируйте, какие кейсы взяли/передали и итог по каждому.',
-  'Проверьте Orange CASE: новые инциденты, исполнители и дедлайны.',
+  'Проверьте Orange CASE.',
   'Обновите change management: окна, риски и контрольные действия.',
-  'Отметьте клиентские обращения, ожидаемые ответы и SLA-таймеры.',
+  'Отметьте клиентские обращения, ожидаемые ответы.',
   'Опишите наблюдения по инфраструктуре, тревогам и стабильности смены.',
 ];
 
@@ -89,7 +88,6 @@ const HandoversPage: React.FC = () => {
 
   const [suggestedToShift, setSuggestedToShift] = useState<Shift | null>(null);
   const [selectedActiveShift, setSelectedActiveShift] = useState<Shift | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<CreateHandover>();
   const watchedFromShift = watch('from_shift_id');
@@ -424,68 +422,6 @@ const HandoversPage: React.FC = () => {
     }
   };
 
-  // Функция экспорта данных
-  const handleExport = async () => {
-    try {
-      setIsExporting(true);
-      console.log('Starting export...');
-      const exportData = await handoversApi.export();
-      console.log('Export response:', exportData);
-      
-      if (!exportData || !exportData.data || exportData.data.length === 0) {
-        toast('Нет данных для экспорта', { icon: 'ℹ️' });
-        return;
-      }
-      
-      // Подготавливаем данные для CSV из простых логов
-      const csvData = exportData.data.map((log: any) => ({
-        'ID': log.id || 'Не указано',
-        'Дата': log.date || 'Не указано',
-        'Время': log.time || 'Не указано',
-        'Передающий': log.from_shift_user || 'Не указано',
-        'Время смены (от)': log.from_shift_time || 'Не указано',
-        'Принимающий': log.to_shift_user || 'Не указано',
-        'Время смены (до)': log.to_shift_time || 'Не указано',
-        'Описание передачи': log.handover_notes || 'Не указано',
-        'Активы': log.assets_info || 'Нет активов'
-      }));
-
-      if (csvData.length === 0) {
-        toast('Нет данных для экспорта', { icon: 'ℹ️' });
-        return;
-      }
-
-      // Создаем CSV строку
-      const headers = Object.keys(csvData[0] || {});
-      const csvContent = [
-        headers.join(','),
-        ...csvData.map(row => 
-          headers.map(header => `"${String((row as any)[header] || '').replace(/"/g, '""')}"`).join(',')
-        )
-      ].join('\n');
-
-      // Скачиваем файл
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `handovers_export_${new Date().toISOString().split('T')[0]}.csv`;
-      link.click();
-      
-      toast.success(`Экспортировано ${exportData.total} передач смен`);
-    } catch (error: any) {
-      console.error('Error exporting data:', error);
-      if (error.response?.status === 422) {
-        toast.error('Ошибка обработки данных на сервере. Проверьте данные передач.');
-      } else if (error.response?.status === 403) {
-        toast.error('Недостаточно прав для экспорта данных');
-      } else {
-        toast.error('Ошибка при экспорте данных');
-      }
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   // Краткая сводка по активам: считаем количество по каждой группе
   const assetSummary = assetGroups.map(group => ({
     ...group,
@@ -508,13 +444,14 @@ const HandoversPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-stretch">
         <div className="lg:col-span-2 bg-white/90 backdrop-blur border border-blue-100 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
-            <img src={logo} alt="IN-SERV" className="w-10 h-10 rounded-xl shadow-inner border border-blue-100 bg-white" />
+            <div className="w-10 h-10 rounded-xl shadow-inner border border-blue-100 bg-gradient-to-br from-blue-500 to-sky-500 flex items-center justify-center">
+              <span className="text-white font-bold text-sm">IS</span>
+            </div>
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-gray-500">In-serv</p>
               <h3 className="text-lg font-bold text-gray-900">Передача смен без потерь</h3>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-3">Сине-голубой акцент помогает быстрее ориентироваться. Фокус — кейсы, Orange, change management и клиентские обязательства.</p>
           <div className="space-y-2 text-sm text-gray-700">
             {quickReminders.map(item => (
               <div key={item} className="flex items-start gap-2">
@@ -549,21 +486,12 @@ const HandoversPage: React.FC = () => {
         <h1 className="text-2xl font-bold text-gray-900">Передачи смен</h1>
         <div className="flex gap-2">
           <button
-            onClick={handleExport}
-            disabled={isExporting}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 bg-white/80 text-primary-700 hover:bg-blue-50 transition-colors"
-            title="Экспорт всех передач в CSV"
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white bg-gradient-to-r from-primary-500 to-sky-500 hover:from-primary-600 hover:to-sky-600 shadow-lg transition-all"
           >
-            <Download size={20} />
-            {isExporting ? 'Экспорт...' : 'Экспорт'}
+            <Plus size={20} />
+            Записать смену
           </button>
-            <button
-              onClick={openCreateModal}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white bg-gradient-to-r from-primary-500 to-sky-500 hover:from-primary-600 hover:to-sky-600 shadow-lg transition-all"
-            >
-              <Plus size={20} />
-              Записать смену
-            </button>
         </div>
       </div>
 

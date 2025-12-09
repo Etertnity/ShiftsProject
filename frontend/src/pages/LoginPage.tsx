@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import logo from '../assets/tserv-logo.svg';
 import { LoginUser, CreateUser } from '../types';
 
 interface LoginPageProps {
@@ -42,7 +41,9 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
       <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
         <div className="space-y-4 bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-8 shadow-lg">
           <div className="flex items-center space-x-3 text-primary-700">
-            <img src={logo} alt="IN-SERV" className="w-12 h-12 rounded-2xl shadow-inner border border-blue-100 bg-white" />
+            <div className="w-12 h-12 rounded-2xl shadow-inner border border-blue-100 bg-gradient-to-br from-blue-500 to-sky-500 flex items-center justify-center">
+              <span className="text-white font-bold text-lg">IS</span>
+            </div>
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-gray-500">In-serv</p>
               <h2 className="text-2xl font-bold text-gray-900">Shift Desk</h2>
