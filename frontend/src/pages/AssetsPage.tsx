@@ -121,8 +121,24 @@ export default function AssetsPage() {
     switch (status) {
       case 'Active': return 'bg-green-100 text-green-800';
       case 'Completed': return 'bg-blue-100 text-blue-800';
-      case 'On Hold': return 'bg-yellow-100 text-yellow-800';
+      case 'On Hold': return 'bg-blue-100 text-blue-800';
+      case 'Closed': return 'bg-gray-200 text-gray-900';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return 'Активен';
+      case 'Completed':
+        return 'Завершён';
+      case 'On Hold':
+        return 'На удержании';
+      case 'Closed':
+        return 'Закрыт';
+      default:
+        return status;
     }
   };
 
@@ -192,6 +208,7 @@ export default function AssetsPage() {
             <option value="Active">Активен</option>
             <option value="Completed">Завершён</option>
             <option value="On Hold">На удержании</option>
+            <option value="Closed">Закрыт</option>
           </select>
         </div>
       </div>
@@ -239,9 +256,7 @@ export default function AssetsPage() {
               </p>
               <div className="flex gap-2 items-center">
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(asset.status)}`}>
-                  {asset.status === 'Active' ? 'Активен' : 
-                   asset.status === 'Completed' ? 'Завершён' : 
-                   asset.status === 'On Hold' ? 'На удержании' : asset.status}
+                  {getStatusLabel(asset.status)}
                 </span>
                 <span className={`text-sm px-2 py-0.5 rounded-full ${
                   asset.asset_type === 'CASE' ? 'bg-blue-100 text-blue-700' :
@@ -311,6 +326,7 @@ export default function AssetsPage() {
                   <option value="Active">Активен</option>
                   <option value="Completed">Завершён</option>
                   <option value="On Hold">На удержании</option>
+                  <option value="Closed">Закрыт</option>
                 </select>
               </div>
               <div className="flex gap-2">
@@ -385,6 +401,7 @@ export default function AssetsPage() {
                   <option value="Active">Активен</option>
                   <option value="Completed">Завершён</option>
                   <option value="On Hold">На удержании</option>
+                  <option value="Closed">Закрыт</option>
                 </select>
               </div>
               <div className="flex gap-2">
