@@ -64,7 +64,7 @@ class Asset(Base):
     title = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     asset_type = Column(String, nullable=False)  # CASE, CHANGE_MANAGEMENT, ORANGE_CASE, CLIENT_REQUESTS
-    status = Column(String, nullable=False)  # Active, Completed, On Hold
+    status = Column(String, nullable=False)  # Active, Completed, On Hold, Closed
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
@@ -203,7 +203,7 @@ class AssetCreate(BaseModel):
     title: str
     description: str
     asset_type: str  # CASE, CHANGE_MANAGEMENT, ORANGE_CASE, CLIENT_REQUESTS
-    status: str  # Active, Completed, On Hold
+    status: str  # Active, Completed, On Hold, Closed
 
 class AssetResponse(BaseModel):
     id: int
@@ -221,7 +221,7 @@ class AssetUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     asset_type: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[str] = None  # Active, Completed, On Hold, Closed
 
 class HandoverCreate(BaseModel):
     from_shift_id: Optional[int] = None
@@ -638,7 +638,9 @@ async def delete_asset(asset_id: int, db: Session = Depends(get_db), current_use
     asset = db.query(Asset).filter(Asset.id == asset_id).first()
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
+    # Clean up handover links to avoid dangling records
+    db.query(HandoverAsset).filter(HandoverAsset.asset_id == asset_id).delete()
     db.delete(asset)
     db.commit()
     return {"message": "Asset deleted successfully"}
@@ -782,6 +784,19 @@ async def update_handover(handover_id: int, handover_update: HandoverCreate, db:
         assets=assets,
         created_at=handover.created_at
     )
+
+
+@app.delete("/api/handovers/{handover_id}")
+async def delete_handover(handover_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):
+    handover = db.query(ShiftHandover).filter(ShiftHandover.id == handover_id).first()
+    if not handover:
+        raise HTTPException(status_code=404, detail="Handover not found")
+
+    db.query(HandoverAsset).filter(HandoverAsset.handover_id == handover_id).delete()
+    db.delete(handover)
+    db.commit()
+    return {"message": "Handover deleted successfully"}
+
 
 @app.get("/api/handovers/export")
 async def export_handovers(db: Session = Depends(get_db), current_user: User = Depends(get_current_active_user)):

@@ -24,7 +24,6 @@ const HandoversPage: React.FC = () => {
   const [suggestedToShift, setSuggestedToShift] = useState<Shift | null>(null);
   const [selectedActiveShift, setSelectedActiveShift] = useState<Shift | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [isClearing, setIsClearing] = useState(false);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<CreateHandover>();
   const watchedFromShift = watch('from_shift_id');
@@ -126,21 +125,41 @@ const HandoversPage: React.FC = () => {
     }
   };
 
+  const preselectActiveCases = () => {
+    const activeCaseIds = assets
+      .filter(asset => asset.asset_type === 'CASE' && asset.status === 'Active')
+      .map(asset => asset.id);
+
+    const drafts = activeCaseIds.reduce((acc, assetId) => {
+      const asset = assets.find(a => a.id === assetId);
+      if (asset) {
+        acc[assetId] = { status: asset.status, description: asset.description };
+      }
+      return acc;
+    }, {} as Record<number, { status: Asset['status']; description: string }>);
+
+    setSelectedAssets(activeCaseIds);
+    setAssetDrafts(drafts);
+
+    return activeCaseIds;
+  };
+
   const openCreateModal = () => {
     setEditingHandover(null);
-    setSelectedAssets([]);
     setAssetDrafts({});
-    
+
     // Ищем активную смену и автоматически выбираем её
     const activeShift = findActiveShift();
     setSelectedActiveShift(activeShift);
-    
-      reset({
-        from_shift_id: activeShift ? activeShift.id : undefined,
-        to_shift_id: undefined,
-        handover_notes: buildStructuredNotes(),
-        asset_ids: []
-      });
+
+    const defaultCaseIds = preselectActiveCases();
+
+    reset({
+      from_shift_id: activeShift ? activeShift.id : undefined,
+      to_shift_id: undefined,
+      handover_notes: buildStructuredNotes(),
+      asset_ids: defaultCaseIds
+    });
     
     // Если есть активная смена, сразу предлагаем следующую
     if (activeShift) {
@@ -178,6 +197,36 @@ const HandoversPage: React.FC = () => {
   const formatMoscow = (iso: string) => {
     const normalized = iso.endsWith('Z') ? iso : `${iso}Z`;
     return new Date(normalized).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+  };
+
+  const handleDeleteHandover = async (handoverId: number) => {
+    if (!window.confirm('Удалить эту запись передачи смены?')) return;
+
+    try {
+      await handoversApi.delete(handoverId);
+      toast.success('Запись удалена');
+      loadData();
+    } catch (error) {
+      console.error('Error deleting handover:', error);
+      toast.error('Не удалось удалить запись');
+    }
+  };
+
+  const handleDeleteAsset = async (assetId: number, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    if (!window.confirm('Удалить этот актив?')) return;
+
+    try {
+      await assetsApi.delete(assetId);
+      toast.success('Актив удалён');
+      loadData();
+    } catch (error) {
+      console.error('Error deleting asset:', error);
+      toast.error('Не удалось удалить актив');
+    }
   };
 
   const handleCreateHandover = async (data: CreateHandover) => {
@@ -271,7 +320,23 @@ const HandoversPage: React.FC = () => {
       case 'Active': return 'bg-green-100 text-green-800';
       case 'Completed': return 'bg-blue-100 text-blue-800';
       case 'On Hold': return 'bg-blue-100 text-blue-800';
+      case 'Closed': return 'bg-gray-200 text-gray-900';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getAssetStatusLabel = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return 'Активен';
+      case 'Completed':
+        return 'Завершён';
+      case 'On Hold':
+        return 'На удержании';
+      case 'Closed':
+        return 'Закрыт';
+      default:
+        return status;
     }
   };
 
@@ -337,32 +402,23 @@ const HandoversPage: React.FC = () => {
     }
   };
 
-  // Функция очистки данных
-  const handleClearData = async () => {
-    if (!window.confirm('Вы уверены, что хотите удалить ВСЕ передачи смен и логи? Это действие нельзя отменить!')) {
-      return;
-    }
+  const assetSummary = [
+    { label: 'Наши CASE', key: 'CASE', accent: 'from-primary-500 via-sky-400 to-cyan-200', description: 'Какие кейсы ведём, статусы и ближайшие шаги.' },
+    { label: 'Orange CASE', key: 'ORANGE_CASE', accent: 'from-sky-500 via-primary-500 to-cyan-300', description: 'Новые инциденты Orange и кому переданы.' },
+    { label: 'Change Mgmt', key: 'CHANGE_MANAGEMENT', accent: 'from-cyan-500 via-primary-500 to-sky-200', description: 'Окна, риски, ответственные и контрольные точки.' },
+    { label: 'Обращения клиентов', key: 'CLIENT_REQUESTS', accent: 'from-primary-600 via-sky-400 to-blue-200', description: 'Ключевые тикеты, обещания и SLA-таймеры.' },
+  ].map(item => ({
+    ...item,
+    count: assets.filter(asset => asset.asset_type === (item.key as any)).length,
+  }));
 
-    if (!window.confirm('Это действие удалит все данные о передачах смен и логи из базы данных. Подтвердите удаление.')) {
-      return;
-    }
-
-    try {
-      setIsClearing(true);
-      const result = await handoversApi.clear();
-      toast.success(result.message);
-      loadData(); // Перезагружаем данные
-    } catch (error: any) {
-      console.error('Error clearing data:', error);
-      if (error.response?.status === 403) {
-        toast.error('Недостаточно прав. Только администраторы могут очищать данные.');
-      } else {
-        toast.error('Ошибка при очистке данных');
-      }
-    } finally {
-      setIsClearing(false);
-    }
-  };
+  const quickReminders = [
+    'Зафиксируйте, какие кейсы взяли/передали и итог по каждому.',
+    'Проверьте Orange CASE: новые инциденты, исполнители и дедлайны.',
+    'Обновите change management: окна, риски и контрольные действия.',
+    'Отметьте клиентские обращения, ожидаемые ответы и SLA-таймеры.',
+    'Опишите наблюдения по инфраструктуре, тревогам и стабильности смены.',
+  ];
 
   const assetSummary = [
     { label: 'Наши CASE', key: 'CASE', accent: 'from-primary-500 via-sky-400 to-cyan-200', description: 'Какие кейсы ведём, статусы и ближайшие шаги.' },
@@ -441,15 +497,6 @@ const HandoversPage: React.FC = () => {
             <Download size={20} />
             {isExporting ? 'Экспорт...' : 'Экспорт'}
           </button>
-          <button
-            onClick={handleClearData}
-            disabled={isClearing}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 transition-colors"
-            title="Очистить всю базу данных передач"
-          >
-            <Trash2 size={20} />
-            {isClearing ? 'Очистка...' : 'Очистить'}
-          </button>
             <button
               onClick={openCreateModal}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-white bg-gradient-to-r from-primary-500 to-sky-500 hover:from-primary-600 hover:to-sky-600 shadow-lg transition-all"
@@ -476,16 +523,7 @@ const HandoversPage: React.FC = () => {
                   Редактировать
                 </button>
                 <button
-                  onClick={async () => {
-                    if (!window.confirm('Удалить эту запись передачи смены?')) return;
-                    try {
-                      await handoversApi.delete(handover.id);
-                      toast.success('Запись удалена');
-                      loadData();
-                    } catch (e) {
-                      toast.error('Не удалось удалить запись');
-                    }
-                  }}
+                  onClick={() => handleDeleteHandover(handover.id)}
                   className="text-red-600 hover:text-red-800 text-sm"
                 >
                   Удалить
@@ -548,18 +586,25 @@ const HandoversPage: React.FC = () => {
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium text-gray-900 break-words">{asset.title}</span>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)} ${grp.badge}`}>
-                              {asset.status === 'Active' ? 'Активен' : asset.status === 'Completed' ? 'Завершён' : 'На удержании'}
+                              {getAssetStatusLabel(asset.status)}
                             </span>
                           </div>
                           <p className="text-sm text-gray-600 break-words whitespace-pre-wrap">
-                            {asset.description.length > 100 
-                              ? `${asset.description.substring(0, 100)}...` 
+                            {asset.description.length > 100
+                              ? `${asset.description.substring(0, 100)}...`
                               : asset.description}
                           </p>
                           <span className="text-xs text-gray-500">
                             {getAssetTypeDisplay(asset.asset_type)}
                           </span>
                         </div>
+                        <button
+                          className="ml-3 text-red-600 hover:text-red-800 text-xs font-semibold flex items-center gap-1"
+                          onClick={(event) => handleDeleteAsset(asset.id, event)}
+                        >
+                          <Trash2 size={14} />
+                          Удалить
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -672,7 +717,7 @@ const HandoversPage: React.FC = () => {
                   ].map((grp) => (
                     <div key={grp.key || 'CASE'}>
                       <div className="text-sm font-semibold text-gray-700 mb-2">{grp.label}</div>
-                      {(assets.filter(a => a.status !== 'Completed' && (
+                      {(assets.filter(a => a.status !== 'Completed' && a.status !== 'Closed' && (
                         (grp.key ? a.asset_type === (grp.key as any) : a.asset_type === 'CASE')
                       ))).map((asset) => (
                         <div
@@ -693,7 +738,7 @@ const HandoversPage: React.FC = () => {
                             <div className="text-xs text-gray-600 break-words">{getAssetTypeDisplay(asset.asset_type)}</div>
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)} ${grp.badge}`}>
-                            {asset.status === 'Active' ? 'Активен' : asset.status === 'Completed' ? 'Завершён' : 'На удержании'}
+                            {getAssetStatusLabel(asset.status)}
                           </span>
                         </div>
                       ))}
@@ -729,7 +774,7 @@ const HandoversPage: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`px-2 py-1 rounded-full text-[11px] font-medium ${getAssetStatusColor(draft.status)}`}>
-                                {draft.status === 'Active' ? 'Активен' : draft.status === 'Completed' ? 'Завершён' : 'На удержании'}
+                                {getAssetStatusLabel(draft.status)}
                               </span>
                               <select
                                 value={draft.status}
@@ -745,6 +790,7 @@ const HandoversPage: React.FC = () => {
                                 <option value="Active">Активен</option>
                                 <option value="On Hold">На удержании</option>
                                 <option value="Completed">Завершён</option>
+                                <option value="Closed">Закрыт</option>
                               </select>
                             </div>
                           </div>
@@ -818,9 +864,7 @@ const HandoversPage: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Статус</label>
                 <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(selectedAssetDetail.status)}`}>
-                  {selectedAssetDetail.status === 'Active' ? 'Активен' : 
-                   selectedAssetDetail.status === 'Completed' ? 'Завершён' : 
-                   selectedAssetDetail.status === 'On Hold' ? 'На удержании' : selectedAssetDetail.status}
+                  {getAssetStatusLabel(selectedAssetDetail.status)}
                 </span>
               </div>
               <div>
@@ -830,7 +874,13 @@ const HandoversPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="mt-6">
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={(event) => handleDeleteAsset(selectedAssetDetail.id, event)}
+                className="w-full bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+              >
+                Удалить актив
+              </button>
               <button
                 onClick={() => setShowAssetDetail(false)}
                 className="w-full bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
