@@ -1,11 +1,10 @@
 import { LoginUser, AuthToken, User } from '../types';
 
-const API_BASE_URL = '';
 const TOKEN_KEY = 'access_token';
 
 export const authService = {
   async login(credentials: LoginUser): Promise<AuthToken> {
-    const response = await fetch(`${API_BASE_URL}/api/token`, {
+    const response = await fetch(`/api/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -43,7 +42,7 @@ export const authService = {
       throw new Error('No token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/me`, {
+    const response = await fetch(`/api/me`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },

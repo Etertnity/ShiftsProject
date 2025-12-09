@@ -10,6 +10,7 @@ from typing import List, Optional
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 import os
+from pathlib import Path
 
 # Authentication setup
 SECRET_KEY = "your-secret-key-here-change-in-production"
@@ -20,7 +21,15 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./shifts.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/shifts.db")
+
+# Ensure data directory exists
+if "sqlite" in DATABASE_URL:
+    db_path = DATABASE_URL.replace("sqlite:////", "/").replace("sqlite:///", "")
+    db_dir = os.path.dirname(db_path)
+    if db_dir and not os.path.exists(db_dir):
+        Path(db_dir).mkdir(parents=True, exist_ok=True)
+
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

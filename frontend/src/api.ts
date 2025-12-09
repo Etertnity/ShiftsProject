@@ -1,10 +1,8 @@
 import axios from 'axios';
 import { User, Shift, Handover, Asset, CreateUser, CreateShift, CreateHandover, CreateAsset, UpdateAsset, UpdateProfile } from './types.ts';
 
-const API_BASE_URL = '';
-
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: '',
   headers: {
     'Content-Type': 'application/json',
   },

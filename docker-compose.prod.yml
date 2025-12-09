@@ -9,7 +9,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=sqlite:///./data/shifts.db
+      - DATABASE_URL=sqlite:////app/data/shifts.db
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
     volumes:
