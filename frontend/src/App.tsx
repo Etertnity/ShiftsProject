@@ -1,3 +1,4 @@
+// Корневое приложение: держит авторизацию и маршруты на одной странице
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Toaster, toast } from 'react-hot-toast';
@@ -12,6 +13,7 @@ import { authService } from './services/auth.ts';
 import { LoginUser, CreateUser, User } from './types';
 import logo from './assets/tserv-logo.svg';
 
+// Навигация вынесена в отдельную функцию, чтобы не засорять основной компонент
 function Navigation({ currentUser, onLogout }: { currentUser: User | null; onLogout: () => void }) {
   const location = useLocation();
   
@@ -100,6 +102,7 @@ function Navigation({ currentUser, onLogout }: { currentUser: User | null; onLog
   );
 }
 
+// Главный компонент отвечает за проверку токена и переключает экран логина/приложения
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);

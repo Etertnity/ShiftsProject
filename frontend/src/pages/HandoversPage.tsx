@@ -1,3 +1,4 @@
+// Страница передачи смен: оставляем существующий функционал, но упрощаем повторяющиеся конструкции
 import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Download, Trash2, Maximize2, X } from 'lucide-react';
 import logo from '../assets/tserv-logo.svg';
@@ -6,7 +7,32 @@ import { Handover, Shift, Asset, CreateHandover } from '../types';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 
+// Единая подсказка для заметок (по требованию — только слово "Наблюдения")
 const buildStructuredNotes = () => 'Наблюдения';
+
+// Описания групп активов используются в нескольких местах, поэтому храним их в одном массиве
+const assetGroups = [
+  { key: 'CASE', label: 'CASE', accent: 'from-primary-500 via-sky-400 to-cyan-200', ring: 'ring-blue-300', badge: 'bg-blue-100 text-blue-700', selection: 'border-blue-300', summary: 'Какие кейсы ведём, статусы и ближайшие шаги.' },
+  { key: 'ORANGE_CASE', label: 'Orange CASE', accent: 'from-sky-500 via-primary-500 to-cyan-300', ring: 'ring-orange-300', badge: 'bg-orange-100 text-orange-700', selection: 'border-orange-300', summary: 'Новые инциденты Orange и кому переданы.' },
+  { key: 'CHANGE_MANAGEMENT', label: 'Change Mgmt', accent: 'from-cyan-500 via-primary-500 to-sky-200', ring: 'ring-purple-300', badge: 'bg-purple-100 text-purple-700', selection: 'border-purple-300', summary: 'Окна, риски, ответственные и контрольные точки.' },
+  { key: 'CLIENT_REQUESTS', label: 'Обращения клиентов', accent: 'from-primary-600 via-sky-400 to-blue-200', ring: 'ring-green-300', badge: 'bg-green-100 text-green-700', selection: 'border-green-300', summary: 'Ключевые тикеты, обещания и SLA-таймеры.' },
+] as const;
+
+// Быстрый помощник для разбиения активов по группам
+const groupAssets = (items: Asset[]) =>
+  assetGroups.map(group => ({
+    ...group,
+    items: items.filter(asset => asset.asset_type === group.key),
+  }));
+
+// Короткие напоминания: отдельный список, чтобы не размножать разметку
+const quickReminders = [
+  'Зафиксируйте, какие кейсы взяли/передали и итог по каждому.',
+  'Проверьте Orange CASE: новые инциденты, исполнители и дедлайны.',
+  'Обновите change management: окна, риски и контрольные действия.',
+  'Отметьте клиентские обращения, ожидаемые ответы и SLA-таймеры.',
+  'Опишите наблюдения по инфраструктуре, тревогам и стабильности смены.',
+];
 
 const HandoversPage: React.FC = () => {
   const [handovers, setHandovers] = useState<Handover[]>([]);
@@ -420,23 +446,14 @@ const HandoversPage: React.FC = () => {
     }
   };
 
-  const assetSummary = [
-    { label: 'Наши CASE', key: 'CASE', accent: 'from-primary-500 via-sky-400 to-cyan-200', description: 'Какие кейсы ведём, статусы и ближайшие шаги.' },
-    { label: 'Orange CASE', key: 'ORANGE_CASE', accent: 'from-sky-500 via-primary-500 to-cyan-300', description: 'Новые инциденты Orange и кому переданы.' },
-    { label: 'Change Mgmt', key: 'CHANGE_MANAGEMENT', accent: 'from-cyan-500 via-primary-500 to-sky-200', description: 'Окна, риски, ответственные и контрольные точки.' },
-    { label: 'Обращения клиентов', key: 'CLIENT_REQUESTS', accent: 'from-primary-600 via-sky-400 to-blue-200', description: 'Ключевые тикеты, обещания и SLA-таймеры.' },
-  ].map(item => ({
-    ...item,
-    count: assets.filter(asset => asset.asset_type === (item.key as any)).length,
+  // Краткая сводка по активам: считаем количество по каждой группе
+  const assetSummary = assetGroups.map(group => ({
+    ...group,
+    count: assets.filter(asset => asset.asset_type === group.key).length,
   }));
 
-  const quickReminders = [
-    'Зафиксируйте, какие кейсы взяли/передали и итог по каждому.',
-    'Проверьте Orange CASE: новые инциденты, исполнители и дедлайны.',
-    'Обновите change management: окна, риски и контрольные действия.',
-    'Отметьте клиентские обращения, ожидаемые ответы и SLA-таймеры.',
-    'Опишите наблюдения по инфраструктуре, тревогам и стабильности смены.',
-  ];
+  // Активы, доступные для выбора в передаче (без завершённых)
+  const groupedSelectableAssets = groupAssets(assets.filter(asset => asset.status !== 'Completed'));
 
   if (loading) {
     return (
@@ -478,7 +495,7 @@ const HandoversPage: React.FC = () => {
                   <h4 className="text-xl font-bold text-gray-900">{item.count}</h4>
                   <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/80 text-primary-700 border border-blue-100">в фокусе</span>
                 </div>
-                <p className="text-sm text-gray-700">{item.description}</p>
+                <p className="text-sm text-gray-700">{item.summary}</p>
               </div>
             </div>
           ))}
@@ -568,24 +585,19 @@ const HandoversPage: React.FC = () => {
                 Активы ({handover.assets.length})
               </h4>
               <div className="grid gap-3">
-                {[
-                  { label: 'CASE', key: 'CASE', ring: 'ring-blue-300', badge: 'bg-blue-100 text-blue-700' },
-                  { label: 'Обращения', key: 'CLIENT_REQUESTS', ring: 'ring-green-300', badge: 'bg-green-100 text-green-700' },
-                  { label: 'Orange CASE', key: 'ORANGE_CASE', ring: 'ring-orange-300', badge: 'bg-orange-100 text-orange-700' },
-                  { label: 'Change Management', key: 'CHANGE_MANAGEMENT', ring: 'ring-purple-300', badge: 'bg-purple-100 text-purple-700' },
-                ].map((grp) => (
-                  <div key={grp.key}>
-                    <div className="text-sm font-semibold text-gray-700 mb-2">{grp.label}</div>
-                    {handover.assets.filter(a => a.asset_type === (grp.key as any)).map((asset) => (
+                {groupAssets(handover.assets).map(group => (
+                  <div key={group.key}>
+                    <div className="text-sm font-semibold text-gray-700 mb-2">{group.label}</div>
+                    {group.items.map(asset => (
                       <div
                         key={asset.id}
                         onClick={() => openAssetDetail(asset)}
-                        className={`flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors ring-2 ${grp.ring}`}
+                        className={`flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors ring-2 ${group.ring}`}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium text-gray-900 break-words">{asset.title}</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)} ${grp.badge}`}>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)} ${group.badge}`}>
                               {getAssetStatusLabel(asset.status)}
                             </span>
                           </div>
@@ -709,21 +721,14 @@ const HandoversPage: React.FC = () => {
               <div className="mb-6">
                 <label className="block text-sm font-medium mb-2">Выберите активы</label>
                 <div className="max-h-64 overflow-y-auto border rounded-lg p-3 space-y-4 bg-white/70">
-                  {[
-                    { label: 'CASE', color: 'border-blue-300', badge: 'bg-blue-100 text-blue-700' },
-                    { label: 'Обращения', key: 'CLIENT_REQUESTS', color: 'border-green-300', badge: 'bg-green-100 text-green-700' },
-                    { label: 'Orange CASE', key: 'ORANGE_CASE', color: 'border-orange-300', badge: 'bg-orange-100 text-orange-700' },
-                    { label: 'Change Management', key: 'CHANGE_MANAGEMENT', color: 'border-purple-300', badge: 'bg-purple-100 text-purple-700' },
-                  ].map((grp) => (
-                    <div key={grp.key || 'CASE'}>
-                      <div className="text-sm font-semibold text-gray-700 mb-2">{grp.label}</div>
-                      {(assets.filter(a => a.status !== 'Completed' && a.status !== 'Closed' && (
-                        (grp.key ? a.asset_type === (grp.key as any) : a.asset_type === 'CASE')
-                      ))).map((asset) => (
+                  {groupedSelectableAssets.map(group => (
+                    <div key={group.key}>
+                      <div className="text-sm font-semibold text-gray-700 mb-2">{group.label}</div>
+                      {group.items.map(asset => (
                         <div
                           key={asset.id}
                           className={`flex items-center p-2 rounded-lg mb-2 cursor-pointer transition-colors border ${
-                            selectedAssets.includes(asset.id) ? grp.color + ' bg-white' : 'bg-gray-50 hover:bg-gray-100'
+                            selectedAssets.includes(asset.id) ? `${group.selection} bg-white` : 'bg-gray-50 hover:bg-gray-100'
                           }`}
                           onClick={() => toggleAssetSelection(asset.id)}
                         >
@@ -737,7 +742,7 @@ const HandoversPage: React.FC = () => {
                             <div className="font-medium text-sm break-words">{asset.title}</div>
                             <div className="text-xs text-gray-600 break-words">{getAssetTypeDisplay(asset.asset_type)}</div>
                           </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)} ${grp.badge}`}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAssetStatusColor(asset.status)} ${group.badge}`}>
                             {getAssetStatusLabel(asset.status)}
                           </span>
                         </div>
