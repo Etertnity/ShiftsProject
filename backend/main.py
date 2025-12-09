@@ -23,14 +23,24 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/shifts.db")
 
-# Ensure data directory exists for SQLite
+# Ensure data directory exists for SQLite BEFORE creating engine
 if "sqlite" in DATABASE_URL:
     # Parse the database path from the URL
     # sqlite:////app/data/shifts.db -> /app/data/shifts.db
     db_file = DATABASE_URL.replace("sqlite:///", "")
-    db_dir = os.path.dirname(db_file)
-    if db_dir:
-        Path(db_dir).mkdir(parents=True, exist_ok=True)
+    # Handle case with 4 slashes
+    if db_file.startswith("/"):
+        db_path = db_file
+    else:
+        db_path = "/" + db_file
+    
+    db_dir = os.path.dirname(db_path)
+    if db_dir and db_dir != "/":
+        try:
+            Path(db_dir).mkdir(parents=True, exist_ok=True)
+            print(f"✓ Database directory ensured: {db_dir}")
+        except Exception as e:
+            print(f"⚠ Failed to create database directory {db_dir}: {e}")
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
