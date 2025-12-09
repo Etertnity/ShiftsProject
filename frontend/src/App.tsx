@@ -26,16 +26,14 @@ function Navigation({ currentUser, onLogout }: { currentUser: User | null; onLog
   ];
 
   return (
-    <nav className="bg-white/90 backdrop-blur shadow-lg border-b border-yellow-100">
+    <nav className="bg-white/90 backdrop-blur shadow-lg border-b border-blue-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-6">
             <div className="flex-shrink-0 flex items-center space-x-2">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary-500 via-amber-400 to-yellow-200 flex items-center justify-center shadow-inner">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
+              <img src={logo} alt="IN-SERV" className="w-10 h-10 rounded-2xl shadow-inner border border-blue-100 bg-white" />
               <div>
-                <p className="text-xs uppercase tracking-widest text-gray-500">T-serv</p>
+                <p className="text-xs uppercase tracking-widest text-gray-500">In-serv</p>
                 <h1 className="text-lg font-bold text-gray-900">Shift Control</h1>
               </div>
             </div>
@@ -46,8 +44,8 @@ function Navigation({ currentUser, onLogout }: { currentUser: User | null; onLog
                   to={path}
                   className={`inline-flex items-center px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
                     isActive(path)
-                      ? 'bg-gradient-to-r from-primary-500 to-amber-400 text-white shadow'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-yellow-50'
+                      ? 'bg-gradient-to-r from-primary-500 to-sky-500 text-white shadow'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-blue-50'
                   }`}
                 >
                   <Icon className="w-4 h-4 mr-2" />
@@ -61,7 +59,7 @@ function Navigation({ currentUser, onLogout }: { currentUser: User | null; onLog
           <div className="flex items-center space-x-4">
             {currentUser && (
               <>
-                <span className="text-sm text-gray-700 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-100">
+                <span className="text-sm text-gray-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
                   {currentUser.name} ({currentUser.position})
                 </span>
                 <button
@@ -86,8 +84,8 @@ function Navigation({ currentUser, onLogout }: { currentUser: User | null; onLog
               to={path}
               className={`block px-3 py-3 rounded-xl text-base font-medium transition-colors duration-200 ${
                 isActive(path)
-                  ? 'bg-gradient-to-r from-primary-500 to-amber-400 text-white shadow'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-yellow-50'
+                  ? 'bg-gradient-to-r from-primary-500 to-sky-500 text-white shadow'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-blue-50'
               }`}
             >
               <div className="flex items-center">
@@ -177,15 +175,15 @@ function App() {
       <div className="min-h-screen">
         <Navigation currentUser={currentUser} onLogout={handleLogout} />
         <main className="max-w-7xl mx-auto py-10 sm:px-6 lg:px-8 space-y-6">
-          <div className="bg-white/80 backdrop-blur rounded-2xl border border-yellow-100 shadow-sm p-6 flex items-center justify-between">
+          <div className="bg-white/80 backdrop-blur rounded-2xl border border-blue-100 shadow-sm p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm uppercase tracking-[0.2em] text-gray-500">T-serv shift desk</p>
+              <p className="text-sm uppercase tracking-[0.2em] text-gray-500">In-serv shift desk</p>
               <h2 className="text-2xl font-bold text-gray-900 mt-1">Умное управление сменами</h2>
-              <p className="text-gray-600 mt-2">Белый и жёлтый фирменный стиль, плавные переходы и акцент на скорости передачи смен.</p>
+              <p className="text-gray-600 mt-2">Новый сине-голубой стиль, плавные переходы и акцент на точных результатах смен.</p>
             </div>
-            <div className="hidden md:flex items-center space-x-3 text-sm text-primary-700 bg-yellow-50 border border-yellow-100 px-4 py-3 rounded-xl shadow-inner">
+            <div className="hidden md:flex items-center space-x-3 text-sm text-primary-700 bg-blue-50 border border-blue-100 px-4 py-3 rounded-xl shadow-inner">
               <Sparkles className="w-4 h-4" />
-              <span>Дизайн обновлён под T-serv</span>
+              <span>Дизайн обновлён под In-serv</span>
             </div>
           </div>
           <Routes>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import logo from '../assets/tserv-logo.svg';
 import { LoginUser, CreateUser } from '../types';
 
 interface LoginPageProps {
@@ -38,34 +38,32 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-yellow-50 to-white py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-blue-50 to-white py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-        <div className="space-y-4 bg-white/80 backdrop-blur border border-yellow-100 rounded-2xl p-8 shadow-lg">
+        <div className="space-y-4 bg-white/80 backdrop-blur border border-blue-100 rounded-2xl p-8 shadow-lg">
           <div className="flex items-center space-x-3 text-primary-700">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-500 via-amber-400 to-yellow-200 flex items-center justify-center shadow-inner">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
+            <img src={logo} alt="IN-SERV" className="w-12 h-12 rounded-2xl shadow-inner border border-blue-100 bg-white" />
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">T-serv</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">In-serv</p>
               <h2 className="text-2xl font-bold text-gray-900">Shift Desk</h2>
             </div>
           </div>
           <p className="text-gray-600 leading-relaxed">
-            Обновлённый фирменный стиль: бело-жёлтая палитра, плавные переходы и акцент на быстром входе в профиль. Регистрация отключена — вход только для сотрудников T-serv.
+            Обновлённый сине-голубой интерфейс, анимации и акцент на быстром доступе в профиль. Регистрация отключена — вход только для сотрудников In-serv.
           </p>
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="p-4 rounded-xl bg-yellow-50 border border-yellow-100 shadow-inner">
+            <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 shadow-inner">
               <p className="font-semibold text-gray-900">Быстрый старт</p>
               <p className="text-gray-600">Вход по логину и паролю без лишних шагов.</p>
             </div>
-            <div className="p-4 rounded-xl bg-white border border-yellow-100 shadow-inner">
+            <div className="p-4 rounded-xl bg-white border border-blue-100 shadow-inner">
               <p className="font-semibold text-gray-900">Без регистрации</p>
               <p className="text-gray-600">Создание новых учёток выключено по требованию безопасности.</p>
             </div>
           </div>
         </div>
 
-        <form className="bg-white/90 backdrop-blur border border-yellow-100 rounded-2xl p-8 shadow-xl space-y-6" onSubmit={handleSubmit}>
+        <form className="bg-white/90 backdrop-blur border border-blue-100 rounded-2xl p-8 shadow-xl space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-1">
             <p className="text-sm uppercase tracking-[0.2em] text-gray-500">Вход</p>
             <h3 className="text-2xl font-bold text-gray-900">Авторизация в профиле</h3>
@@ -105,7 +103,7 @@ export default function LoginPage({ onLogin, onRegister }: LoginPageProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-primary-500 to-amber-400 hover:from-primary-600 hover:to-amber-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 transition-all duration-200 shadow-lg"
+              className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-primary-500 to-sky-500 hover:from-primary-600 hover:to-sky-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 transition-all duration-200 shadow-lg"
             >
               {loading ? 'Загрузка...' : 'Войти в профиль'}
             </button>
