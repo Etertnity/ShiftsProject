@@ -31,7 +31,7 @@ export interface Asset {
   title: string;
   description: string;
   asset_type: 'CASE' | 'CHANGE_MANAGEMENT' | 'ORANGE_CASE' | 'CLIENT_REQUESTS';
-  status: 'Active' | 'Completed' | 'On Hold';
+  status: 'Active' | 'Completed' | 'On Hold' | 'Closed';
   created_at: string;
   updated_at: string;
 }
@@ -40,14 +40,14 @@ export interface CreateAsset {
   title: string;
   description: string;
   asset_type: 'CASE' | 'CHANGE_MANAGEMENT' | 'ORANGE_CASE' | 'CLIENT_REQUESTS';
-  status: 'Active' | 'Completed' | 'On Hold';
+  status: 'Active' | 'Completed' | 'On Hold' | 'Closed';
 }
 
 export interface UpdateAsset {
   title?: string;
   description?: string;
   asset_type?: 'CASE' | 'CHANGE_MANAGEMENT' | 'ORANGE_CASE' | 'CLIENT_REQUESTS';
-  status?: 'Active' | 'Completed' | 'On Hold';
+  status?: 'Active' | 'Completed' | 'On Hold' | 'Closed';
 }
 
 export interface Handover {
