@@ -11,8 +11,8 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/data/shifts.db
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - db_data:/app/data
+      - logs_data:/app/logs
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
@@ -52,3 +52,6 @@ services:
 
 volumes:
   db_data:
+    driver: local
+  logs_data:
+    driver: local
