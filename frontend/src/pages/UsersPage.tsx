@@ -258,7 +258,7 @@ const UsersPage: React.FC = () => {
                   <div className="flex items-center text-xs text-gray-500">
                     {user.is_admin && (
                       <div className="flex items-center space-x-1">
-                        <Shield size={14} className="text-yellow-500" />
+                        <Shield size={14} className="text-blue-500" />
                         <span>Администратор</span>
                       </div>
                     )}

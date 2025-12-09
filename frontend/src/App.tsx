@@ -10,6 +10,7 @@ import AssetsPage from './pages/AssetsPage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
 import { authService } from './services/auth.ts';
 import { LoginUser, CreateUser, User } from './types';
+import logo from './assets/tserv-logo.svg';
 
 function Navigation({ currentUser, onLogout }: { currentUser: User | null; onLogout: () => void }) {
   const location = useLocation();

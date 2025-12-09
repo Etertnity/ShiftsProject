@@ -118,7 +118,7 @@ const DashboardPage: React.FC = () => {
       case 'активна':
         return 'bg-green-100 text-green-800';
       case 'ожидание':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-blue-100 text-blue-800';
       case 'завершена':
         return 'bg-gray-100 text-gray-800';
       default:
@@ -208,7 +208,7 @@ const DashboardPage: React.FC = () => {
           title="Активные кейсы"
           value={stats.activeCases}
           icon={<AlertCircle className="w-6 h-6 text-white" />}
-          color="bg-yellow-500"
+          color="bg-blue-500"
         />
         <StatCard
           title="Всего передач"
@@ -275,7 +275,7 @@ const DashboardPage: React.FC = () => {
                     <div className="text-right">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         shift.shift_type === 'day' 
-                          ? 'bg-yellow-100 text-yellow-800' 
+                          ? 'bg-blue-100 text-blue-800'
                           : 'bg-blue-100 text-blue-800'
                       }`}>
                         {shift.shift_type === 'day' ? 'Дневная' : 'Ночная'}

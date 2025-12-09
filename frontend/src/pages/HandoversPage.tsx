@@ -5,6 +5,7 @@ import { Handover, Shift, Asset, CreateHandover } from '../types';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 
+const buildStructuredNotes = () => 'Наблюдения';
 const buildStructuredNotes = (shift?: Shift | null) => {
   const intro = shift ? `Смена: ${shift.user_name} (${shift.date} ${shift.start_time}-${shift.end_time})` : 'Смена: не выбрана';
 
@@ -39,6 +40,7 @@ const HandoversPage: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingHandover, setEditingHandover] = useState<Handover | null>(null);
   const [selectedAssets, setSelectedAssets] = useState<number[]>([]);
+  const [assetDrafts, setAssetDrafts] = useState<Record<number, { status: Asset['status']; description: string }>>({});
   const [showAssetDetail, setShowAssetDetail] = useState(false);
   const [selectedAssetDetail, setSelectedAssetDetail] = useState<Asset | null>(null);
   const [fullscreenNotes, setFullscreenNotes] = useState<string | null>(null);
@@ -151,6 +153,7 @@ const HandoversPage: React.FC = () => {
   const openCreateModal = () => {
     setEditingHandover(null);
     setSelectedAssets([]);
+    setAssetDrafts({});
     
     // Ищем активную смену и автоматически выбираем её
     const activeShift = findActiveShift();
@@ -178,6 +181,15 @@ const HandoversPage: React.FC = () => {
   const openEditModal = (handover: Handover) => {
     setEditingHandover(handover);
     setSelectedAssets(handover.assets.map(asset => asset.id));
+    setAssetDrafts(
+      handover.assets.reduce((acc, asset) => ({
+        ...acc,
+        [asset.id]: {
+          status: asset.status,
+          description: asset.description,
+        }
+      }), {})
+    );
     reset({
       from_shift_id: handover.from_shift_id || undefined,
       to_shift_id: handover.to_shift_id || undefined,
@@ -198,6 +210,20 @@ const HandoversPage: React.FC = () => {
         ...data,
         asset_ids: selectedAssets
       };
+
+      await Promise.all(
+        selectedAssets.map(assetId => {
+          const asset = assets.find(a => a.id === assetId);
+          if (!asset) return Promise.resolve();
+
+          const draft = assetDrafts[assetId] || { status: asset.status, description: asset.description };
+
+          return assetsApi.update(assetId, {
+            status: draft.status,
+            description: draft.description
+          });
+        })
+      );
 
       if (editingHandover) {
         await handoversApi.update(editingHandover.id, handoverData);
@@ -221,11 +247,25 @@ const HandoversPage: React.FC = () => {
   };
 
   const toggleAssetSelection = (assetId: number) => {
-    setSelectedAssets(prev => 
-      prev.includes(assetId) 
-        ? prev.filter(id => id !== assetId)
-        : [...prev, assetId]
-    );
+    const asset = assets.find(a => a.id === assetId);
+    if (!asset) return;
+
+    setSelectedAssets(prev => {
+      if (prev.includes(assetId)) {
+        setAssetDrafts(drafts => {
+          const { [assetId]: _, ...rest } = drafts;
+          return rest;
+        });
+        return prev.filter(id => id !== assetId);
+      }
+
+      setAssetDrafts(drafts => ({
+        ...drafts,
+        [assetId]: drafts[assetId] || { status: asset.status, description: asset.description }
+      }));
+
+      return [...prev, assetId];
+    });
   };
 
   const openAssetDetail = (asset: Asset) => {
@@ -254,7 +294,7 @@ const HandoversPage: React.FC = () => {
     switch (status) {
       case 'Active': return 'bg-green-100 text-green-800';
       case 'Completed': return 'bg-blue-100 text-blue-800';
-      case 'On Hold': return 'bg-yellow-100 text-yellow-800';
+      case 'On Hold': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -631,16 +671,16 @@ const HandoversPage: React.FC = () => {
                 <p className="text-xs text-gray-600 mb-2">Структура подсказки уже добавлена: наши кейсы, Orange, change management, обращения и общие наблюдения.</p>
                 <textarea
                   {...register('handover_notes', { required: 'Заметки обязательны' })}
-                  rows={4}
-                  className="w-full border rounded-lg px-3 py-2 textarea-wrap resize-vertical"
-                  style={{ 
-                    wordWrap: 'break-word', 
-                    overflowWrap: 'break-word', 
+                  rows={8}
+                  className="w-full border rounded-lg px-3 py-3 textarea-wrap resize-vertical min-h-[220px] bg-white/80 focus:ring-2 focus:ring-primary-400"
+                  style={{
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word',
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word',
                     overflowX: 'hidden'
                   }}
-                  placeholder="Опишите передаваемую информацию..."
+                  placeholder="Наблюдения, риски, быстрые действия для следующей смены"
                 />
                 {errors.handover_notes && (
                   <p className="text-red-500 text-sm mt-1">{errors.handover_notes.message}</p>
@@ -650,7 +690,7 @@ const HandoversPage: React.FC = () => {
               {/* Asset Selection */}
               <div className="mb-6">
                 <label className="block text-sm font-medium mb-2">Выберите активы</label>
-                <div className="max-h-64 overflow-y-auto border rounded-lg p-3 space-y-4">
+                <div className="max-h-64 overflow-y-auto border rounded-lg p-3 space-y-4 bg-white/70">
                   {[
                     { label: 'CASE', color: 'border-blue-300', badge: 'bg-blue-100 text-blue-700' },
                     { label: 'Обращения', key: 'CLIENT_REQUESTS', color: 'border-green-300', badge: 'bg-green-100 text-green-700' },
@@ -685,9 +725,78 @@ const HandoversPage: React.FC = () => {
                         </div>
                       ))}
                     </div>
-                  ))}
+                    ))}
                 </div>
               </div>
+
+              {selectedAssets.length > 0 && (
+                <div className="mb-6 border border-blue-100 rounded-xl bg-white/80 shadow-sm p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">Быстрое обновление по кейсам</p>
+                      <p className="text-xs text-gray-500">Изменения сохранятся в активах до отправки передачи.</p>
+                    </div>
+                    <span className="text-xs px-3 py-1 rounded-full bg-primary-100 text-primary-700">
+                      {selectedAssets.length} в работе
+                    </span>
+                  </div>
+                  <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {selectedAssets.map((assetId) => {
+                      const asset = assets.find(a => a.id === assetId);
+                      if (!asset) return null;
+
+                      const draft = assetDrafts[assetId] || { status: asset.status, description: asset.description };
+
+                      return (
+                        <div key={assetId} className="border border-gray-100 rounded-lg p-3 bg-white/70 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-semibold text-gray-800 break-words">{asset.title}</p>
+                              <p className="text-xs text-gray-500">{getAssetTypeDisplay(asset.asset_type)}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded-full text-[11px] font-medium ${getAssetStatusColor(draft.status)}`}>
+                                {draft.status === 'Active' ? 'Активен' : draft.status === 'Completed' ? 'Завершён' : 'На удержании'}
+                              </span>
+                              <select
+                                value={draft.status}
+                                onChange={(e) => setAssetDrafts(prev => ({
+                                  ...prev,
+                                  [assetId]: {
+                                    ...draft,
+                                    status: e.target.value as Asset['status']
+                                  }
+                                }))}
+                                className="border rounded-lg px-2 py-1 text-xs"
+                              >
+                                <option value="Active">Активен</option>
+                                <option value="On Hold">На удержании</option>
+                                <option value="Completed">Завершён</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-600">Что изменилось</label>
+                            <textarea
+                              value={draft.description}
+                              onChange={(e) => setAssetDrafts(prev => ({
+                                ...prev,
+                                [assetId]: {
+                                  ...draft,
+                                  description: e.target.value
+                                }
+                              }))}
+                              rows={3}
+                              className="w-full border rounded-lg px-3 py-2 text-sm resize-vertical focus:ring-2 focus:ring-primary-300"
+                              placeholder="Кратко опишите изменения и статус по кейсу"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2">
                 <button
