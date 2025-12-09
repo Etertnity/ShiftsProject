@@ -1,12 +1,36 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Download, Trash2, Maximize2, X } from 'lucide-react';
-import logo from '../assets/tserv-logo.svg';
+import { Plus, Download, Trash2, Maximize2, X, Sparkles } from 'lucide-react';
 import { handoversApi, shiftsApi, assetsApi } from '../api.ts';
 import { Handover, Shift, Asset, CreateHandover } from '../types';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 
 const buildStructuredNotes = () => 'Наблюдения';
+const buildStructuredNotes = (shift?: Shift | null) => {
+  const intro = shift ? `Смена: ${shift.user_name} (${shift.date} ${shift.start_time}-${shift.end_time})` : 'Смена: не выбрана';
+
+  return [
+    intro,
+    '',
+    'Наши кейсы:',
+    '- Что открывали и какие статусы обновили.',
+    '',
+    'Orange CASE:',
+    '- Проверили ли новые инциденты, что передать.',
+    '',
+    'Change Management:',
+    '- Окна, изменения, контроль рисков.',
+    '',
+    'Обращения клиентов:',
+    '- Важные треды, SLA, ожидаемые ответы.',
+    '',
+    'Наблюдения по смене:',
+    '- Общие инсайты, риски, рекомендации для следующей команды.',
+    '',
+    'Следующие шаги:',
+    '- Приоритеты и быстрые победы на начало смены.',
+  ].join('\n');
+};
 
 const HandoversPage: React.FC = () => {
   const [handovers, setHandovers] = useState<Handover[]>([]);
@@ -135,12 +159,12 @@ const HandoversPage: React.FC = () => {
     const activeShift = findActiveShift();
     setSelectedActiveShift(activeShift);
     
-      reset({
-        from_shift_id: activeShift ? activeShift.id : undefined,
-        to_shift_id: undefined,
-        handover_notes: buildStructuredNotes(),
-        asset_ids: []
-      });
+    reset({
+      from_shift_id: activeShift ? activeShift.id : undefined,
+      to_shift_id: undefined,
+      handover_notes: buildStructuredNotes(activeShift),
+      asset_ids: []
+    });
     
     // Если есть активная смена, сразу предлагаем следующую
     if (activeShift) {
@@ -365,21 +389,21 @@ const HandoversPage: React.FC = () => {
   };
 
   const assetSummary = [
-    { label: 'Наши CASE', key: 'CASE', accent: 'from-primary-500 via-sky-400 to-cyan-200', description: 'Какие кейсы ведём, статусы и ближайшие шаги.' },
-    { label: 'Orange CASE', key: 'ORANGE_CASE', accent: 'from-sky-500 via-primary-500 to-cyan-300', description: 'Новые инциденты Orange и кому переданы.' },
-    { label: 'Change Mgmt', key: 'CHANGE_MANAGEMENT', accent: 'from-cyan-500 via-primary-500 to-sky-200', description: 'Окна, риски, ответственные и контрольные точки.' },
-    { label: 'Обращения клиентов', key: 'CLIENT_REQUESTS', accent: 'from-primary-600 via-sky-400 to-blue-200', description: 'Ключевые тикеты, обещания и SLA-таймеры.' },
+    { label: 'Наши CASE', key: 'CASE', accent: 'from-primary-500 via-amber-400 to-yellow-200', description: 'Что открыли и какие статусы обновили.' },
+    { label: 'Orange CASE', key: 'ORANGE_CASE', accent: 'from-orange-500 via-amber-400 to-yellow-300', description: 'Проверка свежих инцидентов.' },
+    { label: 'Change Mgmt', key: 'CHANGE_MANAGEMENT', accent: 'from-amber-500 via-yellow-400 to-yellow-200', description: 'Окна, риски и контроль изменений.' },
+    { label: 'Обращения клиентов', key: 'CLIENT_REQUESTS', accent: 'from-yellow-500 via-amber-300 to-yellow-100', description: 'Ключевые тикеты и SLA.' },
   ].map(item => ({
     ...item,
     count: assets.filter(asset => asset.asset_type === (item.key as any)).length,
   }));
 
   const quickReminders = [
-    'Зафиксируйте, какие кейсы взяли/передали и итог по каждому.',
-    'Проверьте Orange CASE: новые инциденты, исполнители и дедлайны.',
-    'Обновите change management: окна, риски и контрольные действия.',
-    'Отметьте клиентские обращения, ожидаемые ответы и SLA-таймеры.',
-    'Опишите наблюдения по инфраструктуре, тревогам и стабильности смены.',
+    'Проверьте открытые нами кейсы и обновите статусы.',
+    'Синхронизируйте Orange CASE: новые инциденты и проброс в работу.',
+    'Уточните change management: окна, риски и ответственные.',
+    'Добавьте клиентские обращения со сроками и ожиданиями.',
+    'Завершите смену чек-листом: что важно сделать в первые 30 минут.',
   ];
 
   if (loading) {
@@ -393,15 +417,17 @@ const HandoversPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-stretch">
-        <div className="lg:col-span-2 bg-white/90 backdrop-blur border border-blue-100 rounded-2xl p-5 shadow-sm">
+        <div className="lg:col-span-2 bg-white/90 backdrop-blur border border-yellow-100 rounded-2xl p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
-            <img src={logo} alt="IN-SERV" className="w-10 h-10 rounded-xl shadow-inner border border-blue-100 bg-white" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 via-amber-400 to-yellow-200 flex items-center justify-center shadow-inner">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">In-serv</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">T-serv</p>
               <h3 className="text-lg font-bold text-gray-900">Передача смен без потерь</h3>
             </div>
           </div>
-          <p className="text-sm text-gray-600 mb-3">Сине-голубой акцент помогает быстрее ориентироваться. Фокус — кейсы, Orange, change management и клиентские обязательства.</p>
+          <p className="text-sm text-gray-600 mb-3">Белый и жёлтый акцент помогают быстро ориентироваться. Фокус на наших кейсах, Orange, change management и обращениях клиентов.</p>
           <div className="space-y-2 text-sm text-gray-700">
             {quickReminders.map(item => (
               <div key={item} className="flex items-start gap-2">
@@ -414,13 +440,13 @@ const HandoversPage: React.FC = () => {
 
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
           {assetSummary.map(item => (
-            <div key={item.key} className="relative overflow-hidden rounded-2xl border border-blue-100 bg-white/90 backdrop-blur shadow-md transition-transform duration-200 hover:-translate-y-1">
+            <div key={item.key} className="relative overflow-hidden rounded-2xl border border-yellow-100 bg-white/90 backdrop-blur shadow-md transition-transform duration-200 hover:-translate-y-1">
               <div className={`absolute inset-0 opacity-60 bg-gradient-to-br ${item.accent}`}></div>
               <div className="relative p-4 space-y-1">
                 <p className="text-xs uppercase tracking-[0.2em] text-gray-700">{item.label}</p>
                 <div className="flex items-center justify-between">
                   <h4 className="text-xl font-bold text-gray-900">{item.count}</h4>
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/80 text-primary-700 border border-blue-100">в фокусе</span>
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/80 text-primary-700 border border-yellow-100">в фокусе</span>
                 </div>
                 <p className="text-sm text-gray-700">{item.description}</p>
               </div>
@@ -435,7 +461,7 @@ const HandoversPage: React.FC = () => {
           <button
             onClick={handleExport}
             disabled={isExporting}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-blue-200 bg-white/80 text-primary-700 hover:bg-blue-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-yellow-200 bg-white/80 text-primary-700 hover:bg-yellow-50 transition-colors"
             title="Экспорт всех передач в CSV"
           >
             <Download size={20} />
@@ -450,13 +476,13 @@ const HandoversPage: React.FC = () => {
             <Trash2 size={20} />
             {isClearing ? 'Очистка...' : 'Очистить'}
           </button>
-            <button
-              onClick={openCreateModal}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white bg-gradient-to-r from-primary-500 to-sky-500 hover:from-primary-600 hover:to-sky-600 shadow-lg transition-all"
-            >
-              <Plus size={20} />
-              Записать смену
-            </button>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-white bg-gradient-to-r from-primary-500 to-amber-400 hover:from-primary-600 hover:to-amber-500 shadow-lg transition-all"
+          >
+            <Plus size={20} />
+            Записать смену
+          </button>
         </div>
       </div>
 
@@ -640,8 +666,9 @@ const HandoversPage: React.FC = () => {
               </div>
 
               {/* Notes */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium mb-2">Наблюдения *</label>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">Заметки по передаче *</label>
+                <p className="text-xs text-gray-600 mb-2">Структура подсказки уже добавлена: наши кейсы, Orange, change management, обращения и общие наблюдения.</p>
                 <textarea
                   {...register('handover_notes', { required: 'Заметки обязательны' })}
                   rows={8}
@@ -774,7 +801,7 @@ const HandoversPage: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 rounded-xl text-white bg-gradient-to-r from-primary-500 to-sky-500 hover:from-primary-600 hover:to-sky-600 shadow-md"
+                  className="flex-1 px-4 py-2 rounded-xl text-white bg-gradient-to-r from-primary-500 to-amber-400 hover:from-primary-600 hover:to-amber-500 shadow-md"
                 >
                   {editingHandover ? 'Сохранить изменения' : 'Записать смену'}
                 </button>
