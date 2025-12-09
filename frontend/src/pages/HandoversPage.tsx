@@ -420,6 +420,24 @@ const HandoversPage: React.FC = () => {
     'Опишите наблюдения по инфраструктуре, тревогам и стабильности смены.',
   ];
 
+  const assetSummary = [
+    { label: 'Наши CASE', key: 'CASE', accent: 'from-primary-500 via-sky-400 to-cyan-200', description: 'Какие кейсы ведём, статусы и ближайшие шаги.' },
+    { label: 'Orange CASE', key: 'ORANGE_CASE', accent: 'from-sky-500 via-primary-500 to-cyan-300', description: 'Новые инциденты Orange и кому переданы.' },
+    { label: 'Change Mgmt', key: 'CHANGE_MANAGEMENT', accent: 'from-cyan-500 via-primary-500 to-sky-200', description: 'Окна, риски, ответственные и контрольные точки.' },
+    { label: 'Обращения клиентов', key: 'CLIENT_REQUESTS', accent: 'from-primary-600 via-sky-400 to-blue-200', description: 'Ключевые тикеты, обещания и SLA-таймеры.' },
+  ].map(item => ({
+    ...item,
+    count: assets.filter(asset => asset.asset_type === (item.key as any)).length,
+  }));
+
+  const quickReminders = [
+    'Зафиксируйте, какие кейсы взяли/передали и итог по каждому.',
+    'Проверьте Orange CASE: новые инциденты, исполнители и дедлайны.',
+    'Обновите change management: окна, риски и контрольные действия.',
+    'Отметьте клиентские обращения, ожидаемые ответы и SLA-таймеры.',
+    'Опишите наблюдения по инфраструктуре, тревогам и стабильности смены.',
+  ];
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
