@@ -12,10 +12,50 @@ const buildStructuredNotes = () => 'Наблюдения';
 
 // Описания групп активов используются в нескольких местах, поэтому храним их в одном массиве
 const assetGroups = [
-  { key: 'CASE', label: 'CASE', accent: 'from-primary-500 via-sky-400 to-cyan-200', ring: 'ring-blue-300', badge: 'bg-blue-100 text-blue-700', selection: 'border-blue-300', summary: 'Какие кейсы ведём, статусы и ближайшие шаги.' },
-  { key: 'ORANGE_CASE', label: 'Orange CASE', accent: 'from-sky-500 via-primary-500 to-cyan-300', ring: 'ring-orange-300', badge: 'bg-orange-100 text-orange-700', selection: 'border-orange-300', summary: 'Новые инциденты Orange и кому переданы.' },
-  { key: 'CHANGE_MANAGEMENT', label: 'Change Mgmt', accent: 'from-cyan-500 via-primary-500 to-sky-200', ring: 'ring-purple-300', badge: 'bg-purple-100 text-purple-700', selection: 'border-purple-300', summary: 'Окна, риски, ответственные и контрольные точки.' },
-  { key: 'CLIENT_REQUESTS', label: 'Обращения клиентов', accent: 'from-primary-600 via-sky-400 to-blue-200', ring: 'ring-green-300', badge: 'bg-green-100 text-green-700', selection: 'border-green-300', summary: 'Ключевые тикеты, обещания и SLA-таймеры.' },
+  {
+    key: 'CASE',
+    label: 'CASE',
+    accent: 'from-sky-500 via-blue-400 to-cyan-200',
+    ring: 'ring-sky-300',
+    badge: 'bg-sky-100 text-sky-800',
+    selection: 'border-sky-300',
+    cardBorder: 'border-sky-200',
+    focusBadge: 'border border-sky-200 text-sky-800',
+    summary: 'Какие кейсы ведём, статусы и ближайшие шаги.'
+  },
+  {
+    key: 'ORANGE_CASE',
+    label: 'Orange CASE',
+    accent: 'from-orange-400 via-amber-300 to-yellow-200',
+    ring: 'ring-amber-300',
+    badge: 'bg-amber-100 text-amber-800',
+    selection: 'border-amber-300',
+    cardBorder: 'border-amber-200',
+    focusBadge: 'border border-amber-200 text-amber-800',
+    summary: 'Новые инциденты Orange и кому переданы.'
+  },
+  {
+    key: 'CHANGE_MANAGEMENT',
+    label: 'Change Mgmt',
+    accent: 'from-emerald-400 via-teal-300 to-green-200',
+    ring: 'ring-emerald-300',
+    badge: 'bg-emerald-100 text-emerald-800',
+    selection: 'border-emerald-300',
+    cardBorder: 'border-emerald-200',
+    focusBadge: 'border border-emerald-200 text-emerald-800',
+    summary: 'Окна, риски, ответственные и контрольные точки.'
+  },
+  {
+    key: 'CLIENT_REQUESTS',
+    label: 'Обращения клиентов',
+    accent: 'from-indigo-400 via-purple-300 to-fuchsia-200',
+    ring: 'ring-purple-300',
+    badge: 'bg-purple-100 text-purple-800',
+    selection: 'border-purple-300',
+    cardBorder: 'border-purple-200',
+    focusBadge: 'border border-purple-200 text-purple-800',
+    summary: 'Ключевые тикеты, обещания и SLA-таймеры.'
+  },
 ] as const;
 
 // Быстрый помощник для разбиения активов по группам
@@ -487,13 +527,16 @@ const HandoversPage: React.FC = () => {
 
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-4">
           {assetSummary.map(item => (
-            <div key={item.key} className="relative overflow-hidden rounded-2xl border border-blue-100 bg-white/90 backdrop-blur shadow-md transition-transform duration-200 hover:-translate-y-1">
+            <div
+              key={item.key}
+              className={`relative overflow-hidden rounded-2xl bg-white/90 backdrop-blur shadow-md transition-transform duration-200 hover:-translate-y-1 border ${item.cardBorder}`}
+            >
               <div className={`absolute inset-0 opacity-60 bg-gradient-to-br ${item.accent}`}></div>
               <div className="relative p-4 space-y-1">
                 <p className="text-xs uppercase tracking-[0.2em] text-gray-700">{item.label}</p>
                 <div className="flex items-center justify-between">
                   <h4 className="text-xl font-bold text-gray-900">{item.count}</h4>
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/80 text-primary-700 border border-blue-100">в фокусе</span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold bg-white/80 ${item.focusBadge}`}>в фокусе</span>
                 </div>
                 <p className="text-sm text-gray-700">{item.summary}</p>
               </div>
