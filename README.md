@@ -199,6 +199,9 @@ nano .env
 
 # Запустить приложение
 docker-compose up -d --build
+
+# Собрать продовую конфигурацию (с аргументом REACT_APP_API_URL для фронтенда)
+docker-compose -f docker-compose.prod.yml --env-file env.production up -d --build
 ```
 
 ## 🔧 Управление приложением
