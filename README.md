@@ -143,6 +143,14 @@ docker-compose up -d --build
 
 ### Деплой на Ubuntu VPS
 
+#### Краткая памятка продового деплоя (Docker Compose)
+
+1. **Скопируйте переменные**: `cp env.production .env` и пропишите реальные значения `REACT_APP_API_URL` (обычно `http://<ваш_домен_или_ip>:8000`), `SECRET_KEY`, `JWT_SECRET`.
+2. **Соберите и запустите**: `docker-compose -f docker-compose.prod.yml --env-file .env up -d --build` — фронтенд возьмёт API URL из build-аргумента, backend поднимется на `8000`, Nginx — на `80`.
+3. **Проверьте состояние**: `docker-compose ps` и `docker-compose logs -f` для первого запуска; убедитесь, что healthcheck контейнеров в статусе `healthy`.
+4. **Настройте домен/SSL (опционально)**: подключите A-запись на сервер и выполните `sudo certbot --nginx -d your-domain.com` при наличии сертификата.
+5. **Обновления**: при новых версиях достаточно `git pull && docker-compose -f docker-compose.prod.yml --env-file .env up -d --build`.
+
 #### 1. Подготовка сервера
 
 ```bash
