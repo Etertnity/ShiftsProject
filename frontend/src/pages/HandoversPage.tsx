@@ -229,12 +229,27 @@ const HandoversPage: React.FC = () => {
     }
   };
 
+  const appendShiftStamp = (baseDescription: string, fromShift?: Shift | null) => {
+    const now = new Date();
+    const timestamp = now.toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' });
+    const shiftLabel = fromShift
+      ? `${fromShift.user_name} (${fromShift.date} ${fromShift.start_time}-${fromShift.end_time})`
+      : 'Смена не указана';
+
+    const trimmed = baseDescription.trimEnd();
+    return `${trimmed}\n\nОбновлено ${timestamp} — смена: ${shiftLabel}`;
+  };
+
   const handleCreateHandover = async (data: CreateHandover) => {
     try {
       const handoverData = {
         ...data,
         asset_ids: selectedAssets
       };
+
+      const fromShift = data.from_shift_id
+        ? shifts.find(s => s.id === Number(data.from_shift_id))
+        : selectedActiveShift;
 
       await Promise.all(
         selectedAssets.map(assetId => {
@@ -243,9 +258,12 @@ const HandoversPage: React.FC = () => {
 
           const draft = assetDrafts[assetId] || { status: asset.status, description: asset.description };
 
+          const hasChanges = draft.status !== asset.status || draft.description !== asset.description;
+          if (!hasChanges) return Promise.resolve();
+
           return assetsApi.update(assetId, {
             status: draft.status,
-            description: draft.description
+            description: appendShiftStamp(draft.description, fromShift)
           });
         })
       );
@@ -401,24 +419,6 @@ const HandoversPage: React.FC = () => {
       setIsExporting(false);
     }
   };
-
-  const assetSummary = [
-    { label: 'Наши CASE', key: 'CASE', accent: 'from-primary-500 via-sky-400 to-cyan-200', description: 'Какие кейсы ведём, статусы и ближайшие шаги.' },
-    { label: 'Orange CASE', key: 'ORANGE_CASE', accent: 'from-sky-500 via-primary-500 to-cyan-300', description: 'Новые инциденты Orange и кому переданы.' },
-    { label: 'Change Mgmt', key: 'CHANGE_MANAGEMENT', accent: 'from-cyan-500 via-primary-500 to-sky-200', description: 'Окна, риски, ответственные и контрольные точки.' },
-    { label: 'Обращения клиентов', key: 'CLIENT_REQUESTS', accent: 'from-primary-600 via-sky-400 to-blue-200', description: 'Ключевые тикеты, обещания и SLA-таймеры.' },
-  ].map(item => ({
-    ...item,
-    count: assets.filter(asset => asset.asset_type === (item.key as any)).length,
-  }));
-
-  const quickReminders = [
-    'Зафиксируйте, какие кейсы взяли/передали и итог по каждому.',
-    'Проверьте Orange CASE: новые инциденты, исполнители и дедлайны.',
-    'Обновите change management: окна, риски и контрольные действия.',
-    'Отметьте клиентские обращения, ожидаемые ответы и SLA-таймеры.',
-    'Опишите наблюдения по инфраструктуре, тревогам и стабильности смены.',
-  ];
 
   const assetSummary = [
     { label: 'Наши CASE', key: 'CASE', accent: 'from-primary-500 via-sky-400 to-cyan-200', description: 'Какие кейсы ведём, статусы и ближайшие шаги.' },
