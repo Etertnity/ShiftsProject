@@ -748,7 +748,7 @@ const HandoversPage: React.FC = () => {
                         </div>
                       ))}
                     </div>
-                  ))}
+                    ))}
                 </div>
               </div>
 
