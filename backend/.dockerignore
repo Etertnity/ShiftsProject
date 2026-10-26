@@ -2,8 +2,16 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
 venv/
+.venv/
+.venv311/
+.venv311.zip
+project/
+tests/
+requirements-dev.txt
 .env
 .git
 logs/
-shifts.db
+data/
+*.db

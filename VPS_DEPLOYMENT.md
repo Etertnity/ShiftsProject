@@ -1,269 +1,233 @@
-# 🚀 Развертывание на VPS Ubuntu 24.04
+# 🚀 Развёртывание Shift Control на VPS
 
-## 📋 Требования
+Инструкция для Ubuntu 22.04 / 24.04. Всё, что ниже, выполняется на сервере по SSH. Установка занимает 10–15 минут, почти всё делает скрипт `deploy-vps.sh`.
 
-- **VPS/сервер** с Ubuntu 24.04
-- **Минимум 1GB RAM** (рекомендуется 2GB+)
-- **Минимум 10GB свободного места** 
-- **Root или sudo доступ**
-- **Открытые порты**: 22 (SSH), 80 (HTTP), 443 (HTTPS)
-
-## 🔧 Быстрое развертывание
-
-### 1️⃣ Подключение к серверу
-```bash
-ssh your-username@your-server-ip
-```
-
-### 2️⃣ Загрузка проекта
-```bash
-# Клонирование проекта (если используете Git)
-git clone https://github.com/yourusername/shift-management.git
-cd shift-management
-
-# ИЛИ загрузка архива
-wget https://github.com/yourusername/shift-management/archive/main.zip
-unzip main.zip
-cd shift-management-main
-```
-
-### 3️⃣ Запуск развертывания
-```bash
-# Сделать скрипт исполняемым
-chmod +x deploy-vps.sh
-
-# Запустить развертывание
-./deploy-vps.sh
-```
-
-## 📁 Альтернативный способ - загрузка файлов
-
-Если у вас есть готовые файлы на Windows:
-
-### 1️⃣ Создание архива проекта
-```powershell
-# В папке C:\project
-Compress-Archive -Path * -DestinationPath shift-management.zip
-```
-
-### 2️⃣ Загрузка на сервер
-```bash
-# Используйте SCP или WinSCP для загрузки
-scp shift-management.zip username@server-ip:~/
-
-# На сервере распакуйте
-cd ~/
-unzip shift-management.zip
-chmod +x deploy-vps.sh
-./deploy-vps.sh
-```
-
-## ⚙️ Что происходит при развертывании
-
-1. **Проверка системы** - Ubuntu версия, права доступа
-2. **Установка Docker** и Docker Compose
-3. **Создание директорий** для данных, логов, SSL
-4. **Настройка .env файла** с IP сервера
-5. **Настройка firewall** (опционально)
-6. **Сборка и запуск** контейнеров
-7. **Настройка автозапуска** через systemd
-8. **Создание скрипта бэкапов**
-
-## 🌐 После развертывания
-
-### Доступ к системе:
-- **Веб-интерфейс**: `http://YOUR-SERVER-IP`
-- **API**: `http://YOUR-SERVER-IP:8000`
-- **Документация API**: `http://YOUR-SERVER-IP:8000/docs`
-
-### Вход в систему:
-- **Логин**: `Sideffect`
-- **Пароль**: `Sid@ffect101`
-
-## 🔧 Управление службой
-
-```bash
-# Просмотр статуса
-docker-compose -f docker-compose.prod.yml ps
-
-# Просмотр логов
-docker-compose -f docker-compose.prod.yml logs -f
-
-# Перезапуск
-docker-compose -f docker-compose.prod.yml restart
-
-# Остановка
-docker-compose -f docker-compose.prod.yml down
-
-# Запуск
-docker-compose -f docker-compose.prod.yml up -d
-
-# Системная служба
-sudo systemctl status shift-management
-sudo systemctl restart shift-management
-```
-
-## 💾 Резервное копирование
-
-```bash
-# Создание бэкапа вручную
-./backup.sh
-
-# Автоматический бэкап (настроен на 2:00 ночи)
-crontab -l  # Просмотр задач cron
-```
-
-## 🔒 Настройка SSL (HTTPS)
-
-### Получение сертификата Let's Encrypt:
-```bash
-# Установка certbot
-sudo apt install certbot
-
-# Получение сертификата
-sudo certbot certonly --standalone -d your-domain.com
-
-# Копирование сертификатов
-sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem ./ssl/cert.pem
-sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem ./ssl/key.pem
-sudo chown $USER:$USER ./ssl/*.pem
-
-# Раскомментирование HTTPS блока в nginx.prod.conf
-nano nginx.prod.conf
-
-# Перезапуск nginx
-docker-compose -f docker-compose.prod.yml restart nginx
-```
-
-### Автообновление сертификатов:
-```bash
-# Добавление в crontab
-(crontab -l; echo "0 3 * * * certbot renew --quiet && docker-compose -f $(pwd)/docker-compose.prod.yml restart nginx") | crontab -
-```
-
-## 🛠️ Troubleshooting
-
-### Проблемы с портами:
-```bash
-# Проверка используемых портов
-sudo netstat -tulpn | grep :80
-sudo netstat -tulpn | grep :8000
-
-# Остановка других веб-серверов
-sudo systemctl stop apache2 nginx
-```
-
-### Проблемы с Docker:
-```bash
-# Перезапуск Docker
-sudo systemctl restart docker
-
-# Очистка системы
-docker system prune -a -f
-
-# Проверка логов
-docker-compose -f docker-compose.prod.yml logs
-```
-
-### Проблемы с правами доступа:
-```bash
-# Добавление пользователя в группу docker
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Проверка прав на директории
-ls -la ./data ./logs ./ssl
-```
-
-### Проблемы с firewall:
-```bash
-# Проверка статуса UFW
-sudo ufw status
-
-# Временное отключение (для диагностики)
-sudo ufw disable
-
-# Проверка доступности портов
-telnet your-server-ip 80
-curl -I http://your-server-ip/health
-```
-
-## 📊 Мониторинг
-
-### Проверка использования ресурсов:
-```bash
-# Использование Docker контейнерами
-docker stats
-
-# Использование диска
-df -h
-du -sh ./data ./logs ./backups
-
-# Использование памяти
-free -h
-
-# Загрузка системы
-htop
-```
-
-### Логи системы:
-```bash
-# Логи приложения
-tail -f ./logs/nginx/access.log
-tail -f ./logs/nginx/error.log
-
-# Системные логи
-sudo journalctl -u shift-management -f
-sudo journalctl -u docker -f
-```
-
-## 🔄 Обновление приложения
-
-```bash
-# Получение новых файлов (Git)
-git pull origin main
-
-# ИЛИ загрузка нового архива и замена файлов
-
-# Пересборка и перезапуск
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml build --no-cache
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-## 🆘 Экстренное восстановление
-
-### Восстановление из бэкапа:
-```bash
-# Остановка служб
-docker-compose -f docker-compose.prod.yml down
-
-# Восстановление данных
-tar -xzf ./backups/shift_management_backup_YYYYMMDD_HHMMSS.tar.gz
-
-# Запуск служб
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-### Полная переустановка:
-```bash
-# Удаление всех контейнеров и образов
-docker-compose -f docker-compose.prod.yml down
-docker system prune -a -f
-
-# Повторное развертывание
-./deploy-vps.sh
-```
+- [Как это устроено](#как-это-устроено)
+- [Что нужно заранее](#что-нужно-заранее)
+- [Установка за 5 шагов](#установка-за-5-шагов)
+- [Что где лежит на сервере](#что-где-лежит-на-сервере)
+- [Повседневные команды](#повседневные-команды)
+- [Обновление сайта](#обновление-сайта)
+- [Бэкапы и восстановление](#бэкапы-и-восстановление)
+- [Переход со старой установки](#переход-со-старой-установки)
+- [Если потерян доступ администратора](#если-потерян-доступ-администратора)
+- [Защита сервера: чек-лист](#защита-сервера-чек-лист)
+- [Диагностика](#диагностика)
 
 ---
 
-## 📞 Поддержка
+## Как это устроено
 
-При возникновении проблем:
+```
+ Браузер ──HTTPS:443──▶ nginx ──┬──▶ frontend  (React, статика)
+          (HTTP:80 → редирект)   └──▶ backend   (FastAPI) ──▶ data/shifts.db (SQLite)
+                                                   └──────▶ Zabbix API (ICMP-монитор, по желанию)
+```
 
-1. Проверьте логи: `docker-compose -f docker-compose.prod.yml logs`
-2. Проверьте статус: `docker-compose -f docker-compose.prod.yml ps`
-3. Проверьте подключение: `curl http://your-server-ip/health`
-4. Создайте issue в репозитории с описанием проблемы
+- Три Docker-контейнера: `shift_management_nginx`, `shift_management_frontend`, `shift_management_backend`.
+- **Наружу открыт только nginx** (порты 80 и 443). Бэкенд и фронтенд доступны лишь внутри сети Docker — напрямую к API, минуя HTTPS и лимиты, обратиться нельзя.
+- nginx: HTTPS (TLS 1.2/1.3), заголовки безопасности и CSP, ограничение частоты входа, лимит размера загрузки 10 МБ.
+- Бэкенд работает не от root, документация API выключена, все секреты — в файле `.env` на сервере.
+- Вся информация хранится в одном файле базы `data/shifts.db` — его и нужно бэкапить (скрипт делает это сам каждую ночь).
 
-**Удачного развертывания! 🚀**
+## Что нужно заранее
+
+| Что | Зачем |
+|---|---|
+| VPS: Ubuntu 22.04/24.04, 1 vCPU, 1–2 ГБ RAM, 10 ГБ диска | Сборка образов требует ~1 ГБ памяти |
+| Доступ по SSH под пользователем с `sudo` | Скрипт ставит Docker и настраивает файрвол |
+| **Домен** (например `shifts.company.ru`), A-запись которого указывает на IP сервера | Нормальный HTTPS-сертификат Let's Encrypt. Без домена будет самоподписанный сертификат — работает, но браузер покажет предупреждение |
+| Открытые на сервере/в облачном файрволе порты 22, 80, 443 | 80 нужен для получения и продления сертификата |
+| Доступ с сервера к Zabbix (`http://<zabbix>/api_jsonrpc.php`) и учётка Zabbix **только на чтение** | Для ICMP-монитора (можно настроить позже) |
+
+## Установка за 5 шагов
+
+### 1. Скачать проект
+
+```bash
+sudo mkdir -p /opt/shift-control && sudo chown $USER: /opt/shift-control
+git clone https://github.com/Etertnity/ShiftsProject.git /opt/shift-control
+cd /opt/shift-control
+```
+
+> Если репозиторий станет приватным (рекомендуется, см. [SECURITY.md](SECURITY.md)), добавьте на сервер deploy key только на чтение: GitHub → Settings → Deploy keys.
+
+### 2. Запустить развёртывание
+
+С доменом (рекомендуется):
+
+```bash
+sudo bash deploy-vps.sh --domain shifts.company.ru --email admin@company.ru
+```
+
+Без домена, по IP (самоподписанный сертификат):
+
+```bash
+sudo bash deploy-vps.sh
+```
+
+Скрипт сам:
+
+1. ставит Docker и Docker Compose из официального репозитория (если их нет);
+2. создаёт папки `data/`, `logs/`, `backups/`, `ssl/` и файл `.env` со случайным `SECRET_KEY` (права `600`);
+3. получает сертификат Let's Encrypt и настраивает его автопродление (или делает самоподписанный);
+4. открывает в `ufw` порты 22, 80, 443 (существующие правила не трогает);
+5. собирает и запускает контейнеры, ждёт, пока сайт ответит;
+6. ставит ежедневный бэкап базы в 03:15 (cron, хранятся 14 дней);
+7. печатает адрес сайта и **временный пароль администратора**.
+
+### 3. Первый вход
+
+В конце вывода скрипта будет строка:
+
+```
+[ВНИМАНИЕ] Создан администратор «admin» с временным паролем: Xy7…
+```
+
+Пароль показывается **один раз** (его также можно найти командой `docker compose -f docker-compose.prod.yml logs backend | grep временным`). Откройте `https://ваш-домен`, войдите — система сразу попросит задать свой пароль (не короче 8 символов). До смены пароля сервер не выполняет никаких других действий.
+
+Затем в разделе **«Сотрудники»** добавьте людей. Каждому выдаётся временный пароль — при первом входе сотрудник задаст свой.
+
+### 4. Подключить ICMP-монитор (по желанию)
+
+```bash
+sudo nano /opt/shift-control/.env
+```
+
+```ini
+ZABBIX_URL=http://192.168.200.11:8080/api_jsonrpc.php
+ZABBIX_USER=<пользователь Zabbix только с правом чтения>
+ZABBIX_PASSWORD=<пароль>
+ZABBIX_WEB_URL=http://192.168.200.11:8080
+```
+
+```bash
+cd /opt/shift-control
+sudo docker compose -f docker-compose.prod.yml up -d backend
+```
+
+Проверка, что сервер видит Zabbix (ожидается код `200` или `412`, а не `000`):
+
+```bash
+sudo docker exec shift_management_backend sh -c 'curl -s -m 10 -o /dev/null -w "%{http_code}\n" "$ZABBIX_URL"'
+```
+
+Если `000` — серверу нужен маршрут/VPN до сети Zabbix.
+
+### 5. Загрузить старый журнал (по желанию)
+
+«Передачи смен» → **Загрузить** → выберите Excel-журнал. Колонки сопоставятся сами, перед загрузкой видно, что будет создано. Повторная загрузка того же файла ничего не задвоит. Подробнее — в [README](README.md#-обмен-с-excel).
+
+## Что где лежит на сервере
+
+| Путь | Что это | Бэкапить? |
+|---|---|---|
+| `/opt/shift-control/` | Код проекта (git) | Нет, есть в git |
+| `.env` | Секреты и настройки: `SECRET_KEY`, Zabbix, лимиты. Права `600` | **Да**, отдельно и в надёжном месте (менеджер паролей) |
+| `data/shifts.db` | **База данных** — все смены, кейсы, передачи, сотрудники | **Да** (автоматически) |
+| `backups/shifts_ДАТА.db.gz` | Ночные бэкапы базы, 14 дней | Копировать на другой сервер |
+| `logs/nginx/` | Журналы nginx (обращения, ошибки) | Нет |
+| `logs/backup.log` | Журнал ночных бэкапов | Нет |
+| `ssl/fullchain.pem`, `ssl/privkey.pem` | Сертификат (ссылки на `/etc/letsencrypt/live/<домен>/` или самоподписанный) | Нет, перевыпускается |
+| `/etc/letsencrypt/` | Сертификаты Let's Encrypt и хуки продления | Нет |
+| `docker-compose.prod.yml`, `nginx.prod.conf` | Конфигурация контейнеров и nginx | Нет, есть в git |
+| `scripts/backup.sh`, `scripts/restore.sh` | Бэкап и восстановление | Нет, есть в git |
+
+Переменные `.env` (полный список с пояснениями — [env.example](env.example)):
+
+| Переменная | По умолчанию | Назначение |
+|---|---|---|
+| `SECRET_KEY` | генерирует скрипт | Подпись токенов входа. Смена ключа = все выходят из системы |
+| `DEFAULT_ADMIN_USERNAME` | `admin` | Логин первого администратора (создаётся, только если администраторов ещё нет) |
+| `DEFAULT_ADMIN_PASSWORD` | пусто | Пусто — временный пароль генерируется и печатается один раз |
+| `LOGIN_MAX_ATTEMPTS` / `LOGIN_LOCKOUT_MINUTES` | 5 / 15 | Блокировка входа после неудачных попыток |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | 1440 | Сколько живёт вход (сутки — больше смены) |
+| `CORS_ORIGINS` | пусто | Нужен, только если фронтенд живёт на другом домене |
+| `ZABBIX_*`, `MONITOR_*_THRESHOLD` | пусто / 40 / 60 | ICMP-монитор |
+
+## Повседневные команды
+
+Все — из `/opt/shift-control`:
+
+```bash
+sudo docker compose -f docker-compose.prod.yml ps                 # что запущено
+sudo docker compose -f docker-compose.prod.yml logs -f backend    # логи бэкенда (неудачные входы тоже здесь)
+sudo docker compose -f docker-compose.prod.yml restart backend    # перезапуск после правки .env
+sudo docker compose -f docker-compose.prod.yml down               # остановить сайт
+sudo docker compose -f docker-compose.prod.yml up -d              # запустить
+curl -fsk https://localhost/healthz                               # жив ли бэкенд → {"status":"ok"}
+```
+
+Контейнеры запускаются сами после перезагрузки сервера (`restart: unless-stopped`).
+
+## Обновление сайта
+
+```bash
+cd /opt/shift-control
+sudo ./scripts/backup.sh                       # на всякий случай — свежий бэкап
+git pull
+sudo bash deploy-vps.sh --domain shifts.company.ru --email admin@company.ru   # те же параметры, что при установке
+```
+
+Скрипт пересоберёт контейнеры; `.env`, база, сертификаты и бэкапы сохранятся. Новые таблицы и колонки база получает сама при старте бэкенда. Открытые у пользователей вкладки сами подтянут новую версию.
+
+## Бэкапы и восстановление
+
+- **Автоматически:** каждый день в 03:15 → `backups/shifts_ГГГГ-ММ-ДД_ЧЧММ.db.gz`, хранятся 14 дней (`BACKUP_KEEP_DAYS`). Бэкап делается «на ходу», без остановки сайта, через SQLite backup API — файл всегда целостный.
+- **Вручную:** `sudo ./scripts/backup.sh`
+- **Восстановить:** `sudo ./scripts/restore.sh backups/shifts_2026-10-21_0315.db.gz` — текущая база перед заменой сохраняется в `backups/before-restore_*.db.gz`.
+- **Важно:** бэкапы на том же сервере не спасут при потере сервера. Раз в день копируйте `backups/` на другую машину, например:
+
+```bash
+# на другой машине (cron), по SSH-ключу с правами только на чтение
+rsync -a user@сервер:/opt/shift-control/backups/ /srv/backups/shift-control/
+```
+
+Проверка бэкапа и выгрузка в другие форматы — [DATABASE_BACKUP.md](DATABASE_BACKUP.md).
+
+## Переход со старой установки
+
+Если сайт уже работает по старому `docker-compose.prod.yml`:
+
+1. **Бэкап:** `sudo cp data/shifts.db data/shifts.before-update.db` (база в старой и новой версии лежит в одном месте — `data/shifts.db`). Если файла `data/shifts.db` нет, база была внутри контейнера — сначала заберите её по инструкции из [DATABASE_BACKUP.md](DATABASE_BACKUP.md#если-база-была-внутри-контейнера-старые-установки), иначе она пропадёт при пересборке.
+2. `git pull`, затем `sudo bash deploy-vps.sh` с нужными параметрами. Существующий `.env` сохранится; в нём обязательно должен быть `SECRET_KEY` (скрипт проверит).
+3. **Смените пароль администратора.** Старый пароль администратора был записан в `deploy-vps.sh` и `VPS_DEPLOYMENT.md` в публичном репозитории — считайте его известным всем (подробно — [SECURITY.md](SECURITY.md)).
+4. Старый порт 8000 больше не публикуется; если в облачном файрволе он открыт — закройте.
+5. Пароли сотрудников короче 8 символов продолжают работать; при следующей смене система потребует не меньше 8. При желании сбросьте пароли в «Сотрудниках» — каждый задаст новый при входе.
+
+## Если потерян доступ администратора
+
+```bash
+cd /opt/shift-control
+sudo docker exec shift_management_backend python -m app.cli list-admins            # логины администраторов
+sudo docker exec shift_management_backend python -m app.cli reset-password <логин>  # временный пароль
+```
+
+Команда выдаёт временный пароль (при входе его нужно сменить), включает учётную запись, если она была отключена, и закрывает все прежние сессии.
+
+## Защита сервера: чек-лист
+
+Сайт защищён сам по себе (см. [SECURITY.md](SECURITY.md)); вот что нужно сделать на уровне сервера:
+
+- [ ] Вход по SSH только по ключу: в `/etc/ssh/sshd_config` — `PasswordAuthentication no`, `PermitRootLogin no`, затем `sudo systemctl restart ssh`.
+- [ ] Автоматические обновления безопасности: `sudo apt install unattended-upgrades && sudo dpkg-reconfigure -plow unattended-upgrades`.
+- [ ] Защита SSH от подбора: `sudo apt install fail2ban` (стандартные настройки уже защищают sshd).
+- [ ] В облачном файрволе провайдера открыты только 22, 80, 443. Порт 22 — по возможности только с адресов офиса/VPN.
+- [ ] Если сайт нужен только внутри компании — ограничьте 80/443 адресами офиса/VPN (`sudo ufw allow from <сеть> to any port 443`) вместо открытого доступа.
+- [ ] Бэкапы копируются на другую машину (см. выше), `.env` хранится в менеджере паролей.
+- [ ] Раз в месяц: `git pull` и `deploy-vps.sh` (свежие образы с исправлениями), `sudo apt upgrade`.
+- [ ] Учётка Zabbix для сайта — только с правом чтения истории.
+- [ ] Проверка продления сертификата: `sudo certbot renew --dry-run`.
+
+## Диагностика
+
+| Симптом | Причина и решение |
+|---|---|
+| Скрипт: «Сайт не ответил за 90 секунд» | Смотрите выведенные логи. Частое: мало памяти при сборке — добавьте swap (`sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`) |
+| certbot: «Timeout during connect» | A-запись домена не указывает на сервер или порт 80 закрыт в облачном файрволе |
+| Браузер: «Подключение не защищено» | Самоподписанный сертификат (установка без `--domain`). Перезапустите скрипт с `--domain` и `--email` |
+| `SECRET_KEY не задан в .env` при `docker compose up` | Добавьте строку `SECRET_KEY=$(openssl rand -hex 32)` в `.env` или запустите `deploy-vps.sh` |
+| «Слишком много неудачных попыток» | Подождите 15 минут или перезапустите бэкенд (счётчики в памяти) |
+| Монитор: «Zabbix не подключён» / ошибки загрузки | Заполнены ли `ZABBIX_*` в `.env`, видит ли сервер Zabbix (см. шаг 4) |
+| После `git pull` странные ошибки сборки | `sudo docker compose -f docker-compose.prod.yml build --no-cache && sudo docker compose -f docker-compose.prod.yml up -d` |
+| `permission denied` на `data/` | Бэкенд сам выставляет права при старте; если правили руками — `sudo chown -R 1000:1000 data logs` |

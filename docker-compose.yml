@@ -6,10 +6,21 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: shift_management_backend
+    # Локальный запуск: порты доступны только с этого компьютера, не из сети
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       - DATABASE_URL=sqlite:///./data/shifts.db
+      # Ключ подписи токенов берётся из .env (deploy-vps.sh генерирует его автоматически)
+      - SECRET_KEY=${SECRET_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+      # ICMP-монитор: доступ к Zabbix только из .env, в репозитории паролей нет
+      - ZABBIX_URL=${ZABBIX_URL:-}
+      - ZABBIX_USER=${ZABBIX_USER:-}
+      - ZABBIX_PASSWORD=${ZABBIX_PASSWORD:-}
+      - ZABBIX_WEB_URL=${ZABBIX_WEB_URL:-}
+      - MONITOR_WARN_THRESHOLD=${MONITOR_WARN_THRESHOLD:-40}
+      - MONITOR_CRIT_THRESHOLD=${MONITOR_CRIT_THRESHOLD:-60}
     volumes:
       - db_data:/app/data
       - logs_data:/app/logs
@@ -26,25 +37,23 @@ services:
       dockerfile: Dockerfile
     container_name: shift_management_frontend
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
     depends_on:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     container_name: shift_management_nginx
     ports:
-      - "80:80"
-      - "8443:443"
+      - "127.0.0.1:80:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - frontend
       - backend

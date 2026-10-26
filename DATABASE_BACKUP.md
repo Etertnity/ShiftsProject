@@ -1,133 +1,79 @@
-# Бэкапы и выгрузка базы данных (SQLite)
+# 💾 Бэкап и восстановление базы (SQLite)
 
-В проекте используется SQLite (файловая БД). В контейнере бэкенда по умолчанию файл: `/app/shifts.db`.
+Все данные сайта — в одном файле: **`/opt/shift-control/data/shifts.db`** на сервере (в контейнере — `/app/data/shifts.db`). Секреты (`SECRET_KEY`, пароль Zabbix) — в `/opt/shift-control/.env`, храните его копию отдельно, в менеджере паролей.
 
-## Где сейчас лежит БД
+## Автоматический бэкап
+
+`deploy-vps.sh` ставит в cron ежедневный запуск `scripts/backup.sh` в 03:15:
+
+- копия делается **на ходу** (SQLite backup API внутри контейнера) — сайт не останавливается, файл всегда целостный;
+- результат: `backups/shifts_ГГГГ-ММ-ДД_ЧЧММ.db.gz`, права `600`, папка `700`;
+- хранятся 14 дней (переменная `BACKUP_KEEP_DAYS`);
+- журнал: `logs/backup.log`.
+
+Проверить, что cron настроен: `sudo crontab -l | grep backup.sh`.
+
+## Вручную
 
 ```bash
-# Проверить
-docker exec -it shift_management_backend sh -lc 'echo DATABASE_URL=$DATABASE_URL; ls -lah /app /app/data 2>/dev/null | grep shifts.db || true'
-```
-
-Если выводит `DATABASE_URL=sqlite:///./shifts.db` — БД внутри контейнера по пути `/app/shifts.db`.
-
-## Рекомендация: сделать хранение устойчивым (bind-mount)
-
-В `docker-compose.prod.yml` для `backend`:
-
-```yaml
-services:
-  backend:
-    volumes:
-      - ./data:/app/data
-    environment:
-      - DATABASE_URL=sqlite:////app/data/shifts.db
-```
-
-Перезапуск:
-```bash
-docker compose -f docker-compose.prod.yml up -d --build backend
-```
-Файл появится на хосте: `./data/shifts.db`.
-
-## Разовый бэкап
-
-- Простой (через docker cp), когда БД внутри контейнера:
-```bash
-mkdir -p /opt/shifts/backups
-docker cp shift_management_backend:/app/shifts.db /opt/shifts/backups/shifts_$(date +%F_%H%M).db
-gzip -f /opt/shifts/backups/shifts_*.db
-```
-
-- Консистентный (даже при записи) через sqlite3 внутри контейнера:
-```bash
-mkdir -p /opt/shifts/backups
-# sqlite3 при необходимости
-docker exec shift_management_backend sh -lc 'command -v sqlite3 >/dev/null 2>&1 || (apt-get update && apt-get install -y sqlite3)'
-# .backup во временный файл и копия на хост
-docker exec shift_management_backend sh -lc "sqlite3 /app/shifts.db \".backup '/tmp/backup.db'\""
-docker cp shift_management_backend:/tmp/backup.db /opt/shifts/backups/shifts_$(date +%F_%H%M).db
-docker exec shift_management_backend sh -lc 'rm -f /tmp/backup.db'
-gzip -f /opt/shifts/backups/shifts_*.db
+cd /opt/shift-control
+sudo ./scripts/backup.sh
+ls -lh backups | tail
 ```
 
 ## Проверка бэкапа
 
 ```bash
-LATEST=$(ls -1t /opt/shifts/backups/shifts_*.db.gz | head -n1); echo "$LATEST"
-gzip -t "$LATEST" && echo OK
-TMP=/tmp/check.db; gunzip -c "$LATEST" > "$TMP"; sqlite3 "$TMP" ".tables"; rm -f "$TMP"
+cd /opt/shift-control
+LATEST=$(ls -1t backups/shifts_*.db.gz | head -n1); echo "$LATEST"
+gzip -t "$LATEST" && echo "архив цел"
+gunzip -c "$LATEST" > /tmp/check.db
+sudo docker run --rm -v /tmp/check.db:/check.db:ro python:3.11-slim \
+  python -c "import sqlite3; c=sqlite3.connect('/check.db'); print(c.execute('pragma integrity_check').fetchone()[0], c.execute('select count(*) from shift_handovers').fetchone()[0], 'передач')"
+rm -f /tmp/check.db
 ```
 
-## Ежедневный бэкап, хранение 14 дней
+## Восстановление
 
-Создайте скрипт (вставляйте построчно):
 ```bash
-echo '#!/usr/bin/env bash' > /usr/local/bin/backup_shifts_db.sh
-echo 'set -euo pipefail' >> /usr/local/bin/backup_shifts_db.sh
-echo 'BACKUP_DIR=/opt/shifts/backups' >> /usr/local/bin/backup_shifts_db.sh
-echo 'CONTAINER=shift_management_backend' >> /usr/local/bin/backup_shifts_db.sh
-echo 'TIMESTAMP=$(date +%F_%H%M)' >> /usr/local/bin/backup_shifts_db.sh
-echo 'mkdir -p "$BACKUP_DIR"' >> /usr/local/bin/backup_shifts_db.sh
-echo 'docker cp "$CONTAINER":/app/shifts.db "$BACKUP_DIR"/shifts_"$TIMESTAMP".db' >> /usr/local/bin/backup_shifts_db.sh
-echo 'gzip -f "$BACKUP_DIR"/shifts_"$TIMESTAMP".db' >> /usr/local/bin/backup_shifts_db.sh
-echo 'find "$BACKUP_DIR" -type f -mtime +14 -delete' >> /usr/local/bin/backup_shifts_db.sh
-chmod +x /usr/local/bin/backup_shifts_db.sh
-mkdir -p /opt/shifts/backups
+cd /opt/shift-control
+sudo ./scripts/restore.sh backups/shifts_2026-10-21_0315.db.gz
 ```
 
-Добавьте в cron (02:00 ежедневно):
+Скрипт останавливает бэкенд, сохраняет текущую базу в `backups/before-restore_*.db.gz`, подкладывает бэкап и запускает бэкенд снова.
+
+## Копия на другую машину
+
+Бэкапы на том же сервере не спасут, если пропадёт сервер. Забирайте их с другой машины по SSH (ключ с доступом только на чтение):
+
 ```bash
-echo '0 2 * * * root /usr/local/bin/backup_shifts_db.sh >> /var/log/backup_shifts_db.log 2>&1' > /etc/cron.d/backup_shifts_db
-chmod 644 /etc/cron.d/backup_shifts_db
-systemctl restart cron
+# Linux, cron на машине для бэкапов
+rsync -a user@сервер:/opt/shift-control/backups/ /srv/backups/shift-control/
 ```
 
-Проверка:
-```bash
-/usr/local/bin/backup_shifts_db.sh
-ls -lah /opt/shifts/backups | tail -n 10
-```
-
-## Скачивание на компьютер
-
-- SCP (команда запускается на вашем ПК):
 ```powershell
-scp -P 50628 root@YOUR_SERVER_IP:/opt/shifts/backups/shifts_YYYY-MM-DD_HHMM.db.gz "$env:USERPROFILE\Downloads\"
+# Windows: разово скачать последний бэкап
+scp user@сервер:/opt/shift-control/backups/shifts_2026-10-21_0315.db.gz "$env:USERPROFILE\Downloads\"
 ```
 
-- Если SCP недоступен — временный сервер загрузки (на сервере):
+> ⚠️ Не выкладывайте базу в публичные файлообменники (transfer.sh и т.п.) и не поднимайте «временный» веб-сервер на папке с бэкапами: в базе — данные сотрудников, кейсы клиентов и журнал работы. Только SSH/SCP или корпоративное хранилище.
+
+## Выгрузка данных для людей
+
+Для отчётов не нужно открывать базу: на сайте «Передачи смен» → **Excel** — передачи, кейсы и история за выбранный период.
+
+## Если база была внутри контейнера (старые установки)
+
+В самых старых версиях база лежала в контейнере по пути `/app/shifts.db` и пропадала при пересоздании контейнера. Перед обновлением заберите её:
+
 ```bash
-docker run --rm -d --name shifts_download -p 8089:80 -v /opt/shifts/backups:/usr/share/nginx/html:ro nginx:alpine
-# затем скачайте в браузере: http://YOUR_SERVER_IP:8089/<имя_файла>.db.gz
-docker stop shifts_download
+cd /opt/shift-control
+sudo docker exec shift_management_backend sh -c 'echo $DATABASE_URL; ls -l /app/*.db /app/data/*.db 2>/dev/null'
+# если база в /app/shifts.db:
+sudo mkdir -p data
+sudo docker cp shift_management_backend:/app/shifts.db data/shifts.db
+# если сервер запускали через docker-compose.yml (именованный том db_data), а data/shifts.db на сервере нет:
+sudo docker cp shift_management_backend:/app/data/shifts.db data/shifts.db
 ```
 
-- Одноразовая ссылка:
-```bash
-curl --upload-file /opt/shifts/backups/shifts_YYYY-MM-DD_HHMM.db.gz https://transfer.sh/shifts_YYYY-MM-DD_HHMM.db.gz
-```
-
-## Восстановление из бэкапа
-
-Если БД внутри контейнера (`/app/shifts.db`):
-```bash
-docker compose -f docker-compose.prod.yml stop backend
-cp /opt/shifts/backups/shifts_YYYY-MM-DD_HHMM.db /opt/shifts-app/backend_restore.db
-docker cp /opt/shifts-app/backend_restore.db shift_management_backend:/app/shifts.db
-rm -f /opt/shifts-app/backend_restore.db
-docker compose -f docker-compose.prod.yml start backend
-```
-
-Если включён bind‑mount (`sqlite:////app/data/shifts.db`):
-```bash
-docker compose -f docker-compose.prod.yml stop backend
-cp /opt/shifts/backups/shifts_YYYY-MM-DD_HHMM.db /opt/shifts-app/data/shifts.db
-docker compose -f docker-compose.prod.yml start backend
-```
-
-## Частые ошибки
-- Неверный путь вида `/path/to/repo/...` — найдите актуальный через `docker exec ... echo $DATABASE_URL`.
-- SCP запускается на сервере — запускать нужно на ПК. Если порт закрыт, используйте 8089/transfer.sh.
-- БД пропадает после пересоздания контейнера — включите bind‑mount и укажите `sqlite:////app/data/shifts.db`. 
-
+Новая версия хранит базу в `data/shifts.db` на сервере (bind-mount), она переживает пересборку контейнеров.

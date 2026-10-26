@@ -2,16 +2,24 @@
 # -*- coding: utf-8 -*-
 """
 Скрипт для просмотра содержимого базы данных shifts.db
-Используйте: python view_database.py
+Используйте: python view_database.py [путь_к_БД]
+По умолчанию открывается backend/data/shifts.db (там её создаёт бэкенд при локальном запуске).
 """
 
 import sqlite3
 import os
+import sys
 from datetime import datetime
+
+# Консоль Windows (cp1251) не умеет печатать эмодзи — без этого скрипт падал при выводе в файл/pipe
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+DB_PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join("backend", "data", "shifts.db")
 
 def connect_to_db():
     """Подключение к базе данных"""
-    db_path = "backend/shifts.db"
+    db_path = DB_PATH
     if not os.path.exists(db_path):
         print(f"❌ Файл базы данных не найден: {db_path}")
         return None
@@ -84,7 +92,7 @@ def show_recent_data(conn, table_name, limit=5):
 
 def get_database_size():
     """Получить размер базы данных"""
-    db_path = "backend/shifts.db"
+    db_path = DB_PATH
     if os.path.exists(db_path):
         size = os.path.getsize(db_path)
         if size < 1024:

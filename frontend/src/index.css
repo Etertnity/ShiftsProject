@@ -3,97 +3,68 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply text-gray-900 bg-gradient-to-br from-white via-blue-50 to-white;
+    @apply bg-gray-50 text-gray-900 antialiased;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* На iOS поля с шрифтом < 16px вызывают автозум — держим 16px на мобильных */
+  input,
+  select,
+  textarea {
+    @apply text-base sm:text-sm;
   }
 }
 
 @layer components {
-  .btn-primary {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors duration-200;
-  }
-  
-  .btn-secondary {
-    @apply bg-gray-200 text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-300 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200;
-  }
-  
-  .btn-danger {
-    @apply bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors duration-200;
-  }
-  
   .card {
-    @apply bg-white/90 backdrop-blur rounded-xl shadow-lg p-6 border border-blue-100;
+    @apply rounded-2xl border border-gray-200 bg-surface shadow-card;
   }
-  /* Глобальные правила переноса текста, чтобы контент не раздувал контейнеры */
+
+  .form-input {
+    @apply block w-full min-w-0 rounded-xl border border-gray-300 bg-surface px-3 py-2.5 text-gray-900
+      placeholder:text-gray-400 shadow-sm transition-colors
+      focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20
+      disabled:cursor-not-allowed disabled:bg-gray-50;
+  }
+
+  .form-label {
+    @apply mb-1.5 block text-sm font-medium text-gray-700;
+  }
+
   .text-wrap-force {
-    word-wrap: break-word;
     overflow-wrap: anywhere;
     word-break: break-word;
     white-space: pre-wrap;
   }
-  .textarea-wrap {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    word-break: break-word;
-    white-space: pre-wrap;
-  }
-  /* Возможность менять размер модалок/контейнеров перетягиванием */
-  .resizable-modal {
-    resize: both;
-    overflow: auto;
-    max-width: calc(100vw - 1rem);
-    max-height: calc(100vh - 1rem);
-    min-width: 320px;
-    min-height: 240px;
-  }
-  /* Отступы контейнера модалки относительно краёв окна */
-  .modal-overlay {
-    padding: clamp(36px, 12vw, 96px);
-  }
-  /* Базовый размер модальных окон: под контент, с разумными ограничениями */
-  .modal-panel {
-    width: auto;
-    height: auto;
-    max-width: min(100%, 1200px);
-    max-height: min(100%, 900px);
-    overflow: auto;
-  }
-  @media (max-width: 640px) {
-    .modal-overlay {
-      padding: clamp(10px, 4vw, 20px);
-    }
-    .modal-panel {
-      max-width: 100%;
-      max-height: 100%;
-    }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
-  /* Опционально: более широкая модалка (если понадобится) */
-  .modal-wide {
-    width: min(90vw, 100%);
-    height: auto;
-    max-width: calc(100vw - 1rem);
-    max-height: calc(100vh - 1rem);
-    overflow: auto;
+  /* Плавная смена темы: включается на мгновение переключения (см. ThemeContext) */
+  .theme-transition,
+  .theme-transition *,
+  .theme-transition *::before,
+  .theme-transition *::after {
+    transition-property: background-color, border-color, color, fill, stroke !important;
+    transition-duration: 300ms !important;
   }
-  @media (max-width: 640px) {
-    .modal-wide {
-      width: 95vw;
-      height: 90vh;
-    }
+
+  /* Горизонтальные ленты (фильтры) прокручиваются пальцем без видимой полосы */
+  .scrollbar-none {
+    scrollbar-width: none;
   }
-  /* Вертикально ресайзить textarea */
-  .resize-vertical {
-    resize: vertical;
-    min-height: 120px;
-    max-height: 70vh;
-  }
-  
-  .form-input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200;
-  }
-  
-  .form-label {
-    @apply block text-sm font-medium text-gray-700 mb-2;
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

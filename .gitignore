@@ -162,3 +162,10 @@ frontend/dist/
 
 # Docker
 .dockerignore
+# Локальные виртуальные окружения и их архивы
+.venv*/
+.venv*.zip
+backend/project/
+
+# Сгенерированный ключ подписи токенов (если SECRET_KEY не задан)
+.secret_key

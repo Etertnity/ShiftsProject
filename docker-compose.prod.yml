@@ -1,27 +1,44 @@
-version: '3.8'
+# Продакшен: docker compose -f docker-compose.prod.yml up -d --build
+# Наружу открыт только nginx (80 → редирект, 443 — сайт). Бэкенд и фронтенд доступны лишь внутри сети Docker.
+# Все секреты — в файле .env рядом (его создаёт deploy-vps.sh, в git он не попадает).
 
 services:
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: shift_management_backend
-    ports:
-      - "8000:8000"
+    # Порт 8000 не публикуется: Docker открывает опубликованные порты в обход ufw,
+    # а напрямую к бэкенду (минуя nginx с HTTPS и лимитами) ходить нельзя
+    expose:
+      - "8000"
     environment:
-      - DATABASE_URL=sqlite:///./data/shifts.db
-      - PYTHONPATH=/app
-      - PYTHONUNBUFFERED=1
+      - APP_ENV=production
+      - DATABASE_URL=sqlite:////app/data/shifts.db
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY не задан в .env — запустите deploy-vps.sh или см. VPS_DEPLOYMENT.md}
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      - DEFAULT_ADMIN_USERNAME=${DEFAULT_ADMIN_USERNAME:-Sideffect}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-}
+      - LOGIN_MAX_ATTEMPTS=${LOGIN_MAX_ATTEMPTS:-5}
+      - LOGIN_LOCKOUT_MINUTES=${LOGIN_LOCKOUT_MINUTES:-15}
+      # ICMP-монитор: доступ к Zabbix только из .env, в репозитории паролей нет
+      - ZABBIX_URL=${ZABBIX_URL:-}
+      - ZABBIX_USER=${ZABBIX_USER:-}
+      - ZABBIX_PASSWORD=${ZABBIX_PASSWORD:-}
+      - ZABBIX_WEB_URL=${ZABBIX_WEB_URL:-}
+      - MONITOR_WARN_THRESHOLD=${MONITOR_WARN_THRESHOLD:-40}
+      - MONITOR_CRIT_THRESHOLD=${MONITOR_CRIT_THRESHOLD:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
-      - ./data:/app/data  # Persistent data storage
-      - ./logs:/app/logs  # Application logs
+      - ./data:/app/data   # база данных SQLite — именно её нужно бэкапить
+      - ./logs:/app/logs
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"] 
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
     networks:
       - shift_network
 
@@ -29,41 +46,47 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - REACT_APP_API_URL=${REACT_APP_API_URL}
     container_name: shift_management_frontend
+    expose:
+      - "80"
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
     networks:
       - shift_network
 
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     container_name: shift_management_nginx
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
+      # Сертификаты Let's Encrypt: ssl/*.pem — ссылки на файлы отсюда
+      - /etc/letsencrypt:/etc/letsencrypt:ro
       - ./logs/nginx:/var/log/nginx
     depends_on:
       - frontend
       - backend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
     networks:
       - shift_network
 
 networks:
   shift_network:
     driver: bridge
-
-volumes:
-  data:
-    driver: local
-  logs:
-    driver: local

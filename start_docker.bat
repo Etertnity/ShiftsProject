@@ -27,8 +27,8 @@ docker-compose ps
 echo.
 echo ✅ Приложение запущено!
 echo.
-echo 🌐 Frontend: http://localhost:3000
-echo 🔧 Backend: http://localhost:8000  
+echo 🌐 Сайт: http://localhost
+echo 🔧 Backend: http://localhost:8000
 echo 📚 API Docs: http://localhost:8000/docs
 echo.
 echo 💡 Для остановки приложения запустите: stop_docker.bat
