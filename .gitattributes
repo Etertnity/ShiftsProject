@@ -4,3 +4,5 @@ docker-entrypoint.sh text eol=lf
 *.conf text eol=lf
 Dockerfile text eol=lf
 *.yml text eol=lf
+# Скрипты Windows — всегда с CRLF, иначе cmd ломается на русском тексте и метках
+*.bat text eol=crlf

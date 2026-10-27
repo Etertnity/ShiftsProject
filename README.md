@@ -117,7 +117,8 @@ ShiftsProject/
 ├── frontend/                    # React + TypeScript + Tailwind
 │   ├── public/                  # index.html, шрифты, theme-init.js
 │   └── src/                     # api/, types/, context/, hooks/, utils/, components/, pages/
-├── scripts/                     # backup.sh, restore.sh — для сервера
+├── scripts/                     # backup.sh, restore.sh — для сервера; install-dev.sh — установка для разработки
+├── install_dependencies.bat     # Установка всех зависимостей на Windows
 ├── deploy-vps.sh                # Развёртывание и обновление на Ubuntu
 ├── docker-compose.prod.yml      # Продакшен: наружу только nginx (80/443)
 ├── docker-compose.yml           # Локальный запуск в Docker (http://localhost)
@@ -128,6 +129,13 @@ ShiftsProject/
 ## 💻 Локальная разработка
 
 Требования: Python 3.11+, Node.js 18+.
+
+**Быстро — одним скриптом.** Он проверит версии Python и Node.js, создаст `backend/venv`, поставит пакеты Python и npm строго по зафиксированным версиям и создаст `.env` из `env.example`, если его нет. Повторный запуск безопасен — так же обновляются зависимости после `git pull`.
+
+- Windows: двойной щелчок по `install_dependencies.bat` (или запуск из командной строки в папке проекта), затем `start_backend.bat` и `start_frontend.bat`.
+- Linux / macOS: `bash scripts/install-dev.sh`.
+
+**Вручную:**
 
 ```bash
 cd backend
