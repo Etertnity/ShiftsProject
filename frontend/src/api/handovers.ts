@@ -18,6 +18,9 @@ export const handoversApi = {
   update: (id: number, handover: CreateHandover): Promise<Handover> =>
     apiClient.put<Handover>(`/api/handovers/${id}`, handover).then((res) => res.data),
   delete: (id: number): Promise<void> => apiClient.delete(`/api/handovers/${id}`).then(() => undefined),
+  /** Удалить все передачи (только администратор) */
+  clear: (): Promise<{ deleted_handovers: number }> =>
+    apiClient.delete<{ deleted_handovers: number }>('/api/handovers/clear').then((res) => res.data),
   export: (): Promise<HandoverExport> =>
     apiClient.get<HandoverExport>('/api/handovers/export').then((res) => res.data),
 };

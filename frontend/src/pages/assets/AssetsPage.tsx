@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-import { FileDown, Package, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { FileDown, Package, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { assetsApi, usersApi } from '../../api';
 import AssetDetailModal from '../../components/assets/AssetDetailModal';
+import ClearDataModal from '../../components/exchange/ClearDataModal';
 import ExportExcelModal from '../../components/exchange/ExportExcelModal';
 import MotionItem from '../../components/motion/MotionItem';
 import Button from '../../components/ui/Button';
@@ -35,6 +36,7 @@ const AssetsPage: React.FC = () => {
   const { categories, statuses, isOpenStatus } = useCatalog();
   const [search, setSearch] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
   const [type, setType] = useState('');
   const [status, setStatus] = useState(OPEN);
   const [extra, setExtra] = useState<ExtraFilters>(DEFAULT_EXTRA);
@@ -114,6 +116,7 @@ const AssetsPage: React.FC = () => {
         actions={
           <>
             <Button variant="secondary" icon={FileDown} onClick={() => setExportOpen(true)}>Excel</Button>
+            {canDelete && <Button variant="secondary" icon={Trash2} onClick={() => setClearOpen(true)}>Очистить</Button>}
             <Button icon={Plus} onClick={openCreate}>Новый актив</Button>
           </>
         }
@@ -212,6 +215,7 @@ const AssetsPage: React.FC = () => {
         }}
       />
       <ExportExcelModal open={exportOpen} onClose={() => setExportOpen(false)} />
+      <ClearDataModal open={clearOpen} initial="assets" onClose={() => setClearOpen(false)} onCleared={reload} />
       <AssetDetailModal asset={viewing} onClose={() => setViewing(null)} onEdit={openEdit} onDelete={canDelete ? handleDelete : undefined} onChanged={reload} />
     </div>
   );

@@ -2,9 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { AnimatePresence } from 'motion/react';
-import { ArrowRightLeft, FileDown, FileUp, Plus } from 'lucide-react';
+import { ArrowRightLeft, FileDown, FileUp, Plus, Trash2 } from 'lucide-react';
 import { assetsApi, handoversApi, shiftsApi } from '../../api';
 import AssetDetailModal from '../../components/assets/AssetDetailModal';
+import ClearDataModal from '../../components/exchange/ClearDataModal';
 import ExportExcelModal from '../../components/exchange/ExportExcelModal';
 import ImportExcelModal from '../../components/exchange/ImportExcelModal';
 import MotionItem from '../../components/motion/MotionItem';
@@ -40,6 +41,7 @@ const HandoversPage: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [clearOpen, setClearOpen] = useState(false);
 
   const { data, loading, reload } = useAsyncData(
     async () => {
@@ -113,6 +115,7 @@ const HandoversPage: React.FC = () => {
             <Button variant="secondary" icon={FileDown} onClick={() => setExportOpen(true)}>Excel</Button>
             {/* Загрузка журнала создаёт передачи и кейсы пачкой — только администратор */}
             {isAdmin && <Button variant="secondary" icon={FileUp} onClick={() => setImportOpen(true)}>Загрузить</Button>}
+            {isAdmin && <Button variant="secondary" icon={Trash2} onClick={() => setClearOpen(true)}>Очистить</Button>}
             <Button icon={Plus} onClick={openCreate}>Передать смену</Button>
           </>
         }
@@ -182,6 +185,7 @@ const HandoversPage: React.FC = () => {
 
       <ExportExcelModal open={exportOpen} onClose={() => setExportOpen(false)} />
       <ImportExcelModal open={importOpen} onClose={() => setImportOpen(false)} onImported={reload} />
+      <ClearDataModal open={clearOpen} initial="handovers" onClose={() => setClearOpen(false)} onCleared={reload} />
       <AssetDetailModal asset={viewAsset} onClose={() => setViewAsset(null)} onChanged={reload} />
     </div>
   );

@@ -231,3 +231,23 @@ def test_case_status_follows_last_handover_in_file(client, admin_headers, user_h
     again = upload(client, admin_headers, "/api/exchange/import", make_workbook(rows=newest_first)).json()
     assert again["handovers"] == 0 and again["assets_closed"] == 1
     assert statuses()["CASE#302 Mike"] in CLOSED
+
+
+def test_clear_assets_and_handovers_for_reimport(client, admin_headers, user_headers):
+    """Очистка перед повторной загрузкой журнала: только администратор, кейсы уходят вместе с историей."""
+    upload(client, admin_headers, "/api/exchange/import", make_workbook())
+    assert client.get("/api/assets/", headers=user_headers, params={"include_closed": True}).json()
+
+    assert client.delete("/api/assets/clear", headers=user_headers).status_code == 403
+    cleared = client.delete("/api/assets/clear", headers=admin_headers)
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["deleted_assets"] == 5
+    assert client.get("/api/assets/", headers=user_headers, params={"include_closed": True}).json() == []
+    # Передачи остались, но без ссылок на удалённые кейсы
+    handovers = client.get("/api/handovers/", headers=user_headers).json()
+    assert len(handovers) == 2 and all(h["assets"] == [] for h in handovers)
+
+    assert client.delete("/api/handovers/clear", headers=admin_headers).json()["deleted_handovers"] == 2
+    # После очистки тот же файл загружается заново целиком
+    again = upload(client, admin_headers, "/api/exchange/import", make_workbook()).json()
+    assert again["handovers"] == 2 and again["assets_created"] == 5

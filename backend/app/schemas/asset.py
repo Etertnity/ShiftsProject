@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, Optional
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.schemas.common import InputModel, LimitedStr, OrmModel, UTCDateTime
 
@@ -78,3 +78,9 @@ class AssetEntryOut(OrmModel):
     shift_id: Optional[int] = None
     handover_id: Optional[int] = None
     created_at: UTCDateTime
+
+
+class AssetClearResult(BaseModel):
+    message: str
+    deleted_assets: int
+    deleted_entries: int

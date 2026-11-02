@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.core.time import utcnow
 from app.db.session import get_db
 from app.models import Asset, AssetEntry, HandoverAsset, User
-from app.schemas.asset import AssetCreate, AssetEntryCreate, AssetEntryOut, AssetResponse, AssetUpdate
+from app.schemas.asset import AssetClearResult, AssetCreate, AssetEntryCreate, AssetEntryOut, AssetResponse, AssetUpdate
 from app.schemas.common import Message
 from app.services import catalog
 from app.services.asset_history import add_entry
@@ -132,6 +132,19 @@ def create_asset(asset_in: AssetCreate, db: Session = Depends(get_db), user: Use
     db.commit()
     db.refresh(asset)
     return asset
+
+
+@router.delete("/clear", response_model=AssetClearResult)
+def clear_assets(db: Session = Depends(get_db), _: User = Depends(get_current_admin_user)):
+    """Удалить все кейсы вместе с историей — например, перед загрузкой журнала заново. Только администратор.
+    Объявлен раньше /{asset_id}, иначе «clear» разбирался бы как id."""
+    assets = db.query(Asset).count()
+    entries = db.query(AssetEntry).count()
+    db.query(HandoverAsset).delete()
+    db.query(AssetEntry).delete()
+    db.query(Asset).delete()
+    db.commit()
+    return AssetClearResult(message=f"Удалено кейсов: {assets}", deleted_assets=assets, deleted_entries=entries)
 
 
 @router.get("/{asset_id}", response_model=AssetResponse)

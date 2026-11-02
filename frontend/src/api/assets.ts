@@ -11,6 +11,9 @@ export const assetsApi = {
   update: (id: number, asset: UpdateAsset): Promise<Asset> =>
     apiClient.put<Asset>(`/api/assets/${id}`, asset).then((res) => res.data),
   delete: (id: number): Promise<void> => apiClient.delete(`/api/assets/${id}`).then(() => undefined),
+  /** Удалить все кейсы с историей (только администратор) */
+  clear: (): Promise<{ deleted_assets: number }> =>
+    apiClient.delete<{ deleted_assets: number }>('/api/assets/clear').then((res) => res.data),
   getEntries: (id: number): Promise<AssetEntry[]> =>
     apiClient.get<AssetEntry[]>(`/api/assets/${id}/entries`).then((res) => res.data),
   addEntry: (id: number, entry: CreateAssetEntry): Promise<AssetEntry> =>
