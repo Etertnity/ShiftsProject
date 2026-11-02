@@ -1,5 +1,5 @@
 """Передачи смен."""
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
@@ -72,10 +72,13 @@ def list_handovers(
     # Журнал растёт на 2–3 передачи в день, в каждой — десятки кейсов: отдаём страницами
     limit: int = Query(default=20, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
+    wave: Optional[int] = Query(default=None, ge=1, le=2),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_active_user),
 ):
     query = db.query(ShiftHandover)
+    if wave:
+        query = query.filter(ShiftHandover.wave == wave)
     response.headers["X-Total-Count"] = str(query.count())
     handovers = (
         query.order_by(ShiftHandover.created_at.desc(), ShiftHandover.id.desc()).offset(offset).limit(limit).all()
@@ -97,7 +100,8 @@ def create_handover(
     service.validate_shift_ids(db, handover_in.from_shift_id, handover_in.to_shift_id)
     asset_ids = _asset_ids_with_updates(db, handover_in)
 
-    handover = ShiftHandover(**handover_in.model_dump(exclude={"asset_ids", "updates"}))
+    handover = ShiftHandover(**handover_in.model_dump(exclude={"asset_ids", "updates", "wave"}))
+    handover.wave = service.resolve_wave(db, handover_in.wave, handover_in.from_shift_id, user)
     db.add(handover)
     db.flush()  # получаем id, но коммитим передачу, связи и обновления активов одной транзакцией
     service.link_assets(db, handover.id, asset_ids)
@@ -128,8 +132,10 @@ def update_handover(
     service.validate_shift_ids(db, handover_in.from_shift_id, handover_in.to_shift_id)
     asset_ids = _asset_ids_with_updates(db, handover_in)
 
-    for key, value in handover_in.model_dump(exclude={"asset_ids", "updates"}).items():
+    for key, value in handover_in.model_dump(exclude={"asset_ids", "updates", "wave"}).items():
         setattr(handover, key, value)
+    if handover_in.wave:
+        handover.wave = handover_in.wave
     db.query(HandoverAsset).filter(HandoverAsset.handover_id == handover_id).delete()
     service.link_assets(db, handover.id, asset_ids)
     # Новые обновления добавляются к истории; прежние записи не переписываем

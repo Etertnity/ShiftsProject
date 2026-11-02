@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { usersApi } from '../../../api';
 import ContactFields, { ContactValues, validateContacts } from '../../../components/users/ContactFields';
@@ -6,7 +7,7 @@ import Button from '../../../components/ui/Button';
 import Field from '../../../components/ui/Field';
 import Modal from '../../../components/ui/Modal';
 import { PASSWORD_MIN_LENGTH } from '../../../constants/navigation';
-import { UserAdmin } from '../../../types';
+import { UserAdmin, Wave, WAVE_LABELS } from '../../../types';
 import { getErrorMessage } from '../../../utils/errors';
 
 interface UserFormModalProps {
@@ -22,10 +23,16 @@ interface FormState extends ContactValues {
   password: string;
   is_admin: boolean;
   is_active: boolean;
+  wave: Wave;
 }
 
 const EMPTY: FormState = {
-  username: '', password: '', name: '', position: '', phone: '', telegram_id: '', email: '', is_admin: false, is_active: true,
+  username: '', password: '', name: '', position: '', phone: '', telegram_id: '', email: '', is_admin: false, is_active: true, wave: 1,
+};
+
+const WAVE_HINTS: Record<Wave, string> = {
+  1: 'Сменные день/ночь: передают дела следующей смене',
+  2: 'Дневные «2 через 2»: передают друг другу каждый вечер в 21:00',
 };
 
 /**
@@ -51,6 +58,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, user, isSelf, onClo
             email: user.email ?? '',
             is_admin: user.is_admin,
             is_active: user.is_active,
+            wave: user.wave ?? 1,
           }
         : EMPTY,
     );
@@ -77,6 +85,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, user, isSelf, onClo
       telegram_id: form.telegram_id.trim().replace(/^@/, ''),
       email: form.email.trim(),
       is_admin: form.is_admin,
+      wave: form.wave,
     };
     setSaving(true);
     try {
@@ -124,6 +133,26 @@ const UserFormModal: React.FC<UserFormModalProps> = ({ open, user, isSelf, onClo
         )}
 
         <ContactFields idPrefix="user" values={form} errors={submitted ? errors : {}} onChange={(key, value) => set(key, value)} />
+
+        <Field label="Волна передачи смен" hint={WAVE_HINTS[form.wave]}>
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1" role="radiogroup" aria-label="Волна передачи смен">
+            {([1, 2] as Wave[]).map((wave) => (
+              <button
+                key={wave}
+                type="button"
+                role="radio"
+                aria-checked={form.wave === wave}
+                onClick={() => set('wave', wave)}
+                className={clsx(
+                  'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                  form.wave === wave ? 'bg-surface text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900',
+                )}
+              >
+                {WAVE_LABELS[wave]}
+              </button>
+            ))}
+          </div>
+        </Field>
 
         <div className="space-y-2 rounded-xl border border-gray-200 p-3">
           <label className="flex items-start gap-3">

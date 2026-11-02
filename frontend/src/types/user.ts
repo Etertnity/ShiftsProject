@@ -2,11 +2,17 @@
  * Коллега для всех сотрудников (график, «Команда»). Контакты — только разрешённые сотрудником:
  * скрытые сервер присылает пустыми. Логина здесь нет.
  */
+/** Волна передачи смен: 1 — сменные 24/7 (день/ночь), 2 — дневные «2 через 2» */
+export type Wave = 1 | 2;
+
+export const WAVE_LABELS: Record<Wave, string> = { 1: '1 волна', 2: '2 волна' };
+
 export interface UserPublic {
   id: number;
   name: string;
   position: string;
   is_active: boolean;
+  wave: Wave;
   phone?: string | null;
   telegram_id?: string | null;
   email?: string | null;
@@ -40,6 +46,7 @@ export interface UserCreateData {
   telegram_id?: string;
   email?: string;
   is_admin: boolean;
+  wave: Wave;
 }
 
 export interface UserUpdateData {
@@ -52,6 +59,7 @@ export interface UserUpdateData {
   email?: string;
   is_admin: boolean;
   is_active?: boolean;
+  wave?: Wave;
 }
 
 export interface UpdateProfile extends Partial<ContactVisibility> {

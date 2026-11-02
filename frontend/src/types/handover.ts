@@ -1,9 +1,12 @@
 import { Asset, AssetEntry } from './asset';
+import { Wave } from './user';
 
 export interface Handover {
   id: number;
   from_shift_id?: number | null;
   to_shift_id?: number | null;
+  /** Какая волна передаёт дела */
+  wave: Wave;
   handover_notes: string;
   assets: Asset[];
   /** Записи истории активов, сделанные в этой передаче */
@@ -20,6 +23,7 @@ export interface HandoverAssetUpdate {
 export interface CreateHandover {
   from_shift_id?: number | null;
   to_shift_id?: number | null;
+  wave?: Wave;
   handover_notes: string;
   asset_ids: number[];
   updates: HandoverAssetUpdate[];

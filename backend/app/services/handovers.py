@@ -39,6 +39,15 @@ def validate_shift_ids(db: Session, *shift_ids: Optional[int]) -> None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Смена {shift_id} не найдена")
 
 
+def resolve_wave(db: Session, wave: Optional[int], from_shift_id: Optional[int], author: User) -> int:
+    """Волна передачи: указанная явно, иначе — волна сотрудника сдающей смены, иначе — автора."""
+    if wave:
+        return wave
+    shift = db.get(Shift, from_shift_id) if from_shift_id else None
+    owner = db.get(User, shift.user_id) if shift else None
+    return (owner or author).wave or 1
+
+
 def link_assets(db: Session, handover_id: int, asset_ids: Iterable[int]) -> None:
     db.add_all(HandoverAsset(handover_id=handover_id, asset_id=asset_id) for asset_id in asset_ids)
 
@@ -106,6 +115,7 @@ def to_response(handover: ShiftHandover, assets: List[Asset], entries: List[Asse
         id=handover.id,
         from_shift_id=handover.from_shift_id,
         to_shift_id=handover.to_shift_id,
+        wave=handover.wave or 1,
         handover_notes=handover.handover_notes,
         assets=[AssetResponse.model_validate(asset) for asset in assets],
         entries=[AssetEntryOut.model_validate(entry) for entry in entries],

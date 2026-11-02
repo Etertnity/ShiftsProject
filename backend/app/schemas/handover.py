@@ -1,4 +1,4 @@
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Literal, Optional
 
 from pydantic import BaseModel, BeforeValidator, Field
 
@@ -20,6 +20,8 @@ class HandoverAssetUpdate(InputModel):
 class HandoverCreate(InputModel):
     from_shift_id: OptionalShiftId = None
     to_shift_id: OptionalShiftId = None
+    # Не указана — берётся по сотруднику сдающей смены (или по автору передачи)
+    wave: Optional[Literal[1, 2]] = None
     handover_notes: str = Field(min_length=1, max_length=TEXT_MAX)
     asset_ids: List[int] = Field(default_factory=list, max_length=1000)
     # Обновления активов применяются вместе с передачей одной транзакцией и пишутся в их историю
@@ -30,6 +32,7 @@ class HandoverResponse(BaseModel):
     id: int
     from_shift_id: Optional[int] = None
     to_shift_id: Optional[int] = None
+    wave: int = 1
     handover_notes: str
     assets: List[AssetResponse]
     # Записи истории, сделанные в этой передаче

@@ -11,11 +11,13 @@ import { AssetStatusBadge, CategoryIcon } from '../../components/assets/AssetBad
 import { LastEntryLine } from '../../components/assets/AssetTimeline';
 import EmptyState from '../../components/ui/EmptyState';
 import { PageLoader } from '../../components/ui/Spinner';
+import WaveBadge from '../../components/ui/WaveBadge';
 import { useCurrentUser } from '../../context/AuthContext';
 import { useCatalog } from '../../context/CatalogContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAsyncData } from '../../hooks/useAsyncData';
 import { useNow } from '../../hooks/useNow';
+import { Handover } from '../../types';
 import { addDays, formatDateTime, formatDayLong, mskDateTime, todayKey } from '../../utils/datetime';
 import { currentWorker, findActiveShifts, findUpcomingShifts, formatPartTime, shiftInterval, sortShifts } from '../../utils/shifts';
 import StatStrip from './components/StatCard';
@@ -62,9 +64,12 @@ const DashboardPage: React.FC = () => {
     async () => {
       // Берём окно ±1 день: этого достаточно для «сегодня», «сейчас» и «ближайших» смен
       const monthStart = `${today.slice(0, 8)}01`;
-      const [handovers, shifts, assets, monthStats, team] = await Promise.all([
+      const [handovers, lastFirst, lastSecond, shifts, assets, monthStats, team] = await Promise.all([
         // Для дашборда нужна только последняя передача и общее число — весь журнал не грузим
         handoversApi.list(1, 0),
+        // И последняя передача каждой волны: сменные видят, что передала 2 волна, и наоборот
+        handoversApi.list(1, 0, 1),
+        handoversApi.list(1, 0, 2),
         shiftsApi.getAll({ date_from: addDays(today, -1), date_to: addDays(today, 2) }),
         assetsApi.getAll(),
         shiftsApi.stats(monthStart, today),
@@ -74,7 +79,8 @@ const DashboardPage: React.FC = () => {
       // Мои отработанные часы за текущий месяц
       const myHours = Math.round(monthStats.items.find((i) => i.user_id === user.id)?.worked_hours ?? 0);
       const contacts = new Map(team.map((u) => [u.id, u]));
-      return { handovers, shifts, assets, myHours, contacts };
+      const lastByWave = [lastFirst.items[0], lastSecond.items[0]].filter((h): h is Handover => !!h);
+      return { handovers, lastByWave, shifts, assets, myHours, contacts };
     },
     [today, user.id],
     'Не удалось загрузить дашборд',
@@ -255,14 +261,21 @@ const DashboardPage: React.FC = () => {
           )}
         </SectionCard>
 
-        <SectionCard title="Последняя передача" icon={ArrowRightLeft} link="/handovers">
-          {view.lastHandover ? (
-            <div className="pt-2">
-              <p className="text-xs text-gray-500">{formatDateTime(view.lastHandover.created_at)}</p>
-              <p className="mt-2 line-clamp-6 text-sm text-gray-700 text-wrap-force">{view.lastHandover.handover_notes}</p>
-              {view.lastHandover.assets.length > 0 && (
-                <p className="mt-3 text-xs font-medium text-gray-500">Активов в передаче: {view.lastHandover.assets.length}</p>
-              )}
+        <SectionCard title="Последние передачи" icon={ArrowRightLeft} link="/handovers">
+          {data.lastByWave.length > 0 ? (
+            <div className="divide-y divide-gray-100">
+              {data.lastByWave.map((handover) => (
+                <div key={handover.id} className="py-3 first:pt-2 last:pb-0">
+                  <p className="flex items-center gap-2 text-xs text-gray-500">
+                    <WaveBadge wave={handover.wave} />
+                    {formatDateTime(handover.created_at)}
+                  </p>
+                  <p className="mt-2 line-clamp-4 text-sm text-gray-700 text-wrap-force">{handover.handover_notes}</p>
+                  {handover.assets.length > 0 && (
+                    <p className="mt-2 text-xs font-medium text-gray-500">Кейсов в передаче: {handover.assets.length}</p>
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
             <EmptyState icon={ArrowRightLeft} title="Передач пока не было" compact />

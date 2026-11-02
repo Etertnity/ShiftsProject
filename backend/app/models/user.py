@@ -19,6 +19,8 @@ class User(Base):
     show_phone = Column(Boolean, default=False, nullable=False, server_default='0')
     show_telegram = Column(Boolean, default=True, nullable=False, server_default='1')
     show_email = Column(Boolean, default=True, nullable=False, server_default='1')
+    # Волна передачи смен: 1 — сменные 24/7 (день/ночь), 2 — дневные «2 через 2», передают друг другу
+    wave = Column(Integer, default=1, nullable=False, server_default='1')
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
     # Пароль выдан администратором (новый сотрудник или сброс) — при входе нужно задать свой

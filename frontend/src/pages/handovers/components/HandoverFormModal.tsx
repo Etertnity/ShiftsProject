@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import { Plus } from 'lucide-react';
 import { handoversApi } from '../../../api';
@@ -9,7 +10,7 @@ import Modal from '../../../components/ui/Modal';
 import { useCurrentUser } from '../../../context/AuthContext';
 import { useCatalog } from '../../../context/CatalogContext';
 import { useDraft } from '../../../hooks/useDraft';
-import { Asset, AssetEntry, Handover, Shift } from '../../../types';
+import { Asset, AssetEntry, Handover, Shift, UserPublic, Wave, WAVE_LABELS } from '../../../types';
 import { addDays, parseServerDate, todayKey } from '../../../utils/datetime';
 import { getErrorMessage } from '../../../utils/errors';
 import { findActiveShifts, findNextShift, formatShiftLabel, shiftInterval, sortShifts } from '../../../utils/shifts';
@@ -22,13 +23,16 @@ interface HandoverFormModalProps {
   handover: Handover | null;
   shifts: Shift[];
   assets: Asset[];
-  /** Последняя передача: кейсы, закрытые после неё, попадают в новую передачу последний раз */
-  lastHandover?: Handover | null;
+  /** Сотрудники — по ним известна волна каждой смены */
+  users: UserPublic[];
+  /** Последняя передача каждой волны: кейсы, закрытые после неё, попадают в новую передачу последний раз */
+  lastByWave: Partial<Record<Wave, Handover | null>>;
   onClose: () => void;
   onSaved: () => void;
 }
 
 interface FormState {
+  wave: Wave;
   fromShiftId: number | '';
   toShiftId: number | '';
   notes: string;
@@ -42,8 +46,28 @@ const QUICK_PHRASES = ['Смена прошла штатно', 'Алертов �
 const EMPTY_NOTES_FALLBACK = 'Без общих замечаний';
 const NO_ENTRIES: AssetEntry[] = [];
 
-const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, shifts, assets, lastHandover, onClose, onSaved }) => {
+const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, shifts, assets, users, lastByWave, onClose, onSaved }) => {
   const user = useCurrentUser();
+  const waves = useMemo(() => new Map(users.map((u) => [u.id, u.wave ?? 1])), [users]);
+  const waveOf = useCallback((shift: Shift): Wave => (waves.get(shift.user_id) ?? 1) as Wave, [waves]);
+  // Принимает смена той же волны: у 1 волны день ↔ ночь; у 2 волны — ближайшая смена напарника
+  // («2 через 2»: Александр всегда передаёт Владимиру и наоборот, даже если завтра снова выходит сам)
+  const nextInWave = useCallback(
+    (from: Shift, wave: Wave) =>
+      findNextShift(
+        from,
+        shifts.filter((s) => s.id === from.id || (waveOf(s) === wave && (wave === 1 || s.user_id !== from.user_id))),
+      ),
+    [shifts, waveOf],
+  );
+  // Сдающая смена: своя текущая, иначе текущая смена нужной волны
+  const activeFor = useCallback(
+    (wave: Wave) => {
+      const active = findActiveShifts(shifts).filter((s) => waveOf(s) === wave);
+      return active.find((s) => s.user_id === user.id || s.segments.some((p) => p.user_id === user.id)) ?? active[0] ?? null;
+    },
+    [shifts, waveOf, user.id],
+  );
   const { isOpenStatus } = useCatalog();
   const [form, setForm] = useState<FormState | null>(null);
   const [createdAssets, setCreatedAssets] = useState<Asset[]>([]);
@@ -72,6 +96,7 @@ const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, s
     if (handover) {
       setSuggestedId(null);
       setForm({
+        wave: handover.wave ?? 1,
         fromShiftId: handover.from_shift_id ?? '',
         toShiftId: handover.to_shift_id ?? '',
         notes: handover.handover_notes,
@@ -81,10 +106,16 @@ const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, s
       return;
     }
 
-    // Новая передача: сдаёт текущая смена, принимает следующая по графику
-    const active = findActiveShifts(shifts)[0];
-    const next = active ? findNextShift(active, shifts) : null;
+    // Новая передача: волна — по своей смене (или по профилю), сдаёт текущая смена волны, принимает следующая
+    const own = findActiveShifts(shifts).find((s) => s.user_id === user.id || s.segments.some((p) => p.user_id === user.id));
+    const wave: Wave = own ? waveOf(own) : ((waves.get(user.id) ?? 1) as Wave);
+    const active = activeFor(wave);
+    const next = active ? nextInWave(active, wave) : null;
     const shiftStart = active ? shiftInterval(active).start : null;
+    // Кейсы общие для обеих волн — «закрытые после прошлой передачи» считаем от самой свежей передачи любой волны
+    const lastHandover = [lastByWave[1], lastByWave[2]]
+      .filter((h): h is Handover => !!h)
+      .sort((a, b) => parseServerDate(b.created_at).getTime() - parseServerDate(a.created_at).getTime())[0];
     // В передачу попадают все открытые кейсы. Кейсы, закрытые после прошлой передачи (например, со страницы
     // активов), попадают сюда последний раз — чтобы закрытие было записано в журнале смены
     const since = lastHandover ? parseServerDate(lastHandover.created_at) : shiftStart;
@@ -101,6 +132,7 @@ const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, s
 
     setSuggestedId(next?.id ?? null);
     setForm({
+      wave,
       fromShiftId: active?.id ?? '',
       toShiftId: next?.id ?? '',
       notes: '',
@@ -162,10 +194,24 @@ const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, s
   const handleFromChange = (value: string) => {
     const id = value ? Number(value) : '';
     const from = id ? shifts.find((s) => s.id === id) : undefined;
-    const next = from ? findNextShift(from, shifts) : null;
+    const wave = from ? waveOf(from) : form.wave;
+    const next = from ? nextInWave(from, wave) : null;
     setSuggestedId(next?.id ?? null);
     // Подсказываем принимающую смену только когда пользователь сам меняет сдающую
-    setForm((prev) => prev && { ...prev, fromShiftId: id, toShiftId: next ? next.id : prev.toShiftId });
+    setForm((prev) => prev && { ...prev, wave, fromShiftId: id, toShiftId: next ? next.id : prev.toShiftId });
+  };
+
+  // Сменили волну вручную — подбираем сдающую и принимающую смены этой волны
+  const handleWaveChange = (wave: Wave) => {
+    const from = handover ? (form.fromShiftId ? shifts.find((s) => s.id === form.fromShiftId) : undefined) : activeFor(wave) ?? undefined;
+    const next = from && waveOf(from) === wave ? nextInWave(from, wave) : null;
+    setSuggestedId(next?.id ?? null);
+    setForm((prev) => prev && {
+      ...prev,
+      wave,
+      fromShiftId: handover ? prev.fromShiftId : from?.id ?? '',
+      toShiftId: next ? next.id : handover ? prev.toShiftId : '',
+    });
   };
 
   const addPhrase = (phrase: string) =>
@@ -184,6 +230,7 @@ const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, s
           text: draft.text.trim() || undefined,
         }));
       const payload = {
+        wave: form.wave,
         from_shift_id: form.fromShiftId || null,
         to_shift_id: form.toShiftId || null,
         handover_notes: form.notes.trim() || EMPTY_NOTES_FALLBACK,
@@ -250,6 +297,29 @@ const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, s
             onDiscard={clear}
           />
         )}
+
+        <Field
+          label="Кто передаёт"
+          hint={form.wave === 2 ? 'Дневные «2 через 2»: передача следующему дневному 2 волны' : 'Сменные: день → ночь, ночь → день'}
+        >
+          <div className="grid max-w-xs grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1" role="radiogroup" aria-label="Волна">
+            {([1, 2] as Wave[]).map((wave) => (
+              <button
+                key={wave}
+                type="button"
+                role="radio"
+                aria-checked={form.wave === wave}
+                onClick={() => handleWaveChange(wave)}
+                className={clsx(
+                  'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                  form.wave === wave ? 'bg-surface text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900',
+                )}
+              >
+                {WAVE_LABELS[wave]}
+              </button>
+            ))}
+          </div>
+        </Field>
 
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Сдаёт смену" htmlFor="from-shift">

@@ -1,4 +1,4 @@
-import { CreateHandover, Handover, HandoverExport } from '../types';
+import { CreateHandover, Handover, HandoverExport, Wave } from '../types';
 import { apiClient } from './client';
 
 export interface HandoverPage {
@@ -9,9 +9,9 @@ export interface HandoverPage {
 
 export const handoversApi = {
   /** Журнал постранично (новые сверху): за год набегают сотни передач по десятку кейсов в каждой */
-  list: (limit = 10, offset = 0): Promise<HandoverPage> =>
+  list: (limit = 10, offset = 0, wave?: Wave): Promise<HandoverPage> =>
     apiClient
-      .get<Handover[]>('/api/handovers/', { params: { limit, offset } })
+      .get<Handover[]>('/api/handovers/', { params: { limit, offset, wave } })
       .then((res) => ({ items: res.data, total: Number(res.headers['x-total-count'] ?? res.data.length) })),
   create: (handover: CreateHandover): Promise<Handover> =>
     apiClient.post<Handover>('/api/handovers/', handover).then((res) => res.data),

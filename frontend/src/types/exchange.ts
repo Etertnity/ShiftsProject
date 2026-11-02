@@ -38,4 +38,6 @@ export interface ImportResult {
   assets_closed: number;
   assets_reopened: number;
   last_handover: string | null;
+  /** Строки сотрудников 2 волны — в журнал Excel они не входят */
+  second_wave_skipped: number;
 }

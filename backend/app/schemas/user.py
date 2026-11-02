@@ -1,9 +1,12 @@
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 from app.schemas.common import InputModel, LimitedStr, OrmModel, UTCDateTime
 
+
+# Волна передачи смен: 1 — сменные 24/7, 2 — дневные «2 через 2»
+Wave = Literal[1, 2]
 
 # Пароль: не короче 8 символов; верхняя граница — bcrypt всё равно учитывает только первые 72 байта
 NewPassword = Annotated[str, Field(min_length=8, max_length=128)]
@@ -21,6 +24,7 @@ class UserCreate(UserBase):
     username: str = Field(min_length=1, max_length=150)
     password: NewPassword
     is_admin: bool = False
+    wave: Wave = 1
 
 
 class UserUpdate(UserBase):
@@ -30,6 +34,8 @@ class UserUpdate(UserBase):
     username: LimitedStr(150) = None
     is_admin: bool = False
     is_active: Optional[bool] = None
+    # Не передана (старый клиент) — оставляем как было
+    wave: Optional[Wave] = None
 
 
 class ContactVisibility(BaseModel):
@@ -65,6 +71,7 @@ class UserPublic(OrmModel):
     name: str
     position: str
     is_active: bool
+    wave: int = 1
     phone: Optional[str] = None
     telegram_id: Optional[str] = None
     email: Optional[str] = None

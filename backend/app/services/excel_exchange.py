@@ -108,6 +108,22 @@ def _norm(text: str) -> str:
 
 
 # =============================================================================
+# 2 волна (дневные «2 через 2») в Excel-журнал передач не входит
+# =============================================================================
+
+SECOND_WAVE_SKIPPED = "2 волна — в журнал Excel не входит"
+
+
+def _second_wave_ids(db: Session) -> set:
+    return {uid for (uid,) in db.query(User.id).filter(User.wave == 2).all()}
+
+
+def _hidden_entry(entry: AssetEntry, second_wave: set, second_wave_handovers: set) -> bool:
+    """Запись 2 волны: её автор из 2 волны или она сделана в передаче 2 волны."""
+    return entry.author_id in second_wave or (entry.handover_id is not None and entry.handover_id in second_wave_handovers)
+
+
+# =============================================================================
 # Выгрузка
 # =============================================================================
 
@@ -193,7 +209,10 @@ def export_workbook(db: Session, date_from: Optional[date], date_to: Optional[da
         _set_text(ws.cell(row=1, column=index), title)
     _style_header(ws, [20, 20] + [70] * len(ctx.categories) + [55, 10])
 
-    handovers = in_range(db.query(ShiftHandover), ShiftHandover.created_at).order_by(
+    # Журнал Excel — только 1 волна: передачи и записи 2 волны (дневные «2 через 2») в файл не попадают
+    second_wave = _second_wave_ids(db)
+    second_wave_handovers = {h for (h,) in db.query(ShiftHandover.id).filter(ShiftHandover.wave == 2).all()}
+    handovers = in_range(db.query(ShiftHandover).filter(ShiftHandover.wave != 2), ShiftHandover.created_at).order_by(
         ShiftHandover.created_at, ShiftHandover.id
     ).all()
     ids = [h.id for h in handovers]
@@ -207,7 +226,8 @@ def export_workbook(db: Session, date_from: Optional[date], date_to: Optional[da
     entries_by: Dict[Tuple[int, int], List[AssetEntry]] = defaultdict(list)
     if ids:
         for entry in db.query(AssetEntry).filter(AssetEntry.handover_id.in_(ids)).order_by(AssetEntry.id).all():
-            entries_by[(entry.handover_id, entry.asset_id)].append(entry)
+            if not _hidden_entry(entry, second_wave, second_wave_handovers):
+                entries_by[(entry.handover_id, entry.asset_id)].append(entry)
     # Тексты истории по кейсам: если в смене записи не было, в журнал идёт последний известный текст
     texts_by_asset: Dict[int, List[Tuple[datetime, str]]] = defaultdict(list)
     statuses_by_asset: Dict[int, List[Tuple[datetime, str]]] = defaultdict(list)
@@ -215,7 +235,7 @@ def export_workbook(db: Session, date_from: Optional[date], date_to: Optional[da
         for entry in (db.query(AssetEntry)
                       .filter(AssetEntry.asset_id.in_(asset_ids))
                       .order_by(AssetEntry.created_at, AssetEntry.id).all()):
-            if entry.text:
+            if entry.text and not _hidden_entry(entry, second_wave, second_wave_handovers):
                 texts_by_asset[entry.asset_id].append((entry.created_at, entry.text))
             if entry.new_status:
                 statuses_by_asset[entry.asset_id].append((entry.created_at, entry.new_status))
@@ -270,7 +290,8 @@ def export_workbook(db: Session, date_from: Optional[date], date_to: Optional[da
     all_assets = db.query(Asset).order_by(Asset.asset_type, Asset.updated_at.desc()).all()
     last_entries: Dict[int, AssetEntry] = {}
     for entry in db.query(AssetEntry).filter(AssetEntry.text.isnot(None)).order_by(AssetEntry.id).all():
-        last_entries[entry.asset_id] = entry
+        if not _hidden_entry(entry, second_wave, second_wave_handovers):
+            last_entries[entry.asset_id] = entry
     fields_by_category = {c.key: {f.key: f.label for f in c.fields} for c in ctx.categories}
     for row, asset in enumerate(all_assets, start=2):
         last = last_entries.get(asset.id)
@@ -303,7 +324,11 @@ def export_workbook(db: Session, date_from: Optional[date], date_to: Optional[da
         _set_text(ws.cell(row=1, column=index), title)
     _style_header(ws, [17, 9, 40, 18, 15, 15, 15, 70, 20, 10])
     all_by_id = {a.id: a for a in all_assets}
-    history = in_range(db.query(AssetEntry), AssetEntry.created_at).order_by(AssetEntry.created_at, AssetEntry.id).all()
+    history = [
+        entry
+        for entry in in_range(db.query(AssetEntry), AssetEntry.created_at).order_by(AssetEntry.created_at, AssetEntry.id).all()
+        if not _hidden_entry(entry, second_wave, second_wave_handovers)
+    ]
     for row, entry in enumerate(history, start=2):
         asset = all_by_id.get(entry.asset_id)
         values = [
@@ -601,6 +626,7 @@ def preview(db: Session, content: bytes, mapping_raw: Optional[str] = None) -> d
         parsed, mapping_error = [], error.detail
     else:
         mapping_error = None
+    _mark_second_wave(db, parsed)
     existing = _existing_keys(db, (r.source_key for r in parsed))
     existing_ids = _existing_ids(db, parsed)
     return {
@@ -627,6 +653,19 @@ def preview(db: Session, content: bytes, mapping_raw: Optional[str] = None) -> d
     }
 
 
+def _mark_second_wave(db: Session, parsed: List[ParsedRow]) -> int:
+    """Строки сотрудников 2 волны не загружаются: помечаем их, как строки с причиной пропуска."""
+    second_wave = [u for u in db.query(User).filter(User.wave == 2).all()]
+    if not second_wave:
+        return 0
+    marked = 0
+    for row in parsed:
+        if not row.error and _match_user(second_wave, row.person):
+            row.error = SECOND_WAVE_SKIPPED
+            marked += 1
+    return marked
+
+
 # --- Применение ---------------------------------------------------------------
 
 @dataclass
@@ -641,6 +680,8 @@ class ImportStats:
     assets_closed: int = 0
     assets_reopened: int = 0
     last_handover: Optional[str] = None
+    # Строки сотрудников 2 волны — в журнал Excel они не входят
+    second_wave_skipped: int = 0
 
 
 class _AssetIndex:
@@ -707,6 +748,7 @@ def apply_import(db: Session, content: bytes, mapping_raw: Optional[str], import
     categories = db.query(AssetCategory).order_by(AssetCategory.position, AssetCategory.id).all()
     mapping = _validate_mapping(mapping_raw, headers, categories)
     parsed = parse_rows(headers, rows, mapping)
+    second_wave_rows = _mark_second_wave(db, parsed)
 
     statuses = db.query(AssetStatusOption).order_by(AssetStatusOption.position).all()
     if not statuses:
@@ -718,7 +760,7 @@ def apply_import(db: Session, content: bytes, mapping_raw: Optional[str], import
     index = _AssetIndex(db)
     existing = _existing_keys(db, (r.source_key for r in parsed))
     existing_ids = _existing_ids(db, parsed)
-    stats = ImportStats()
+    stats = ImportStats(second_wave_skipped=second_wave_rows)
     touched: set = set()
     # Последний текст по каждому кейсу — чтобы не дублировать одинаковые записи истории
     last_text: Dict[int, str] = {}
@@ -728,6 +770,8 @@ def apply_import(db: Session, content: bytes, mapping_raw: Optional[str], import
     # Журнал часто ведут «новые сверху» — применяем передачи по времени, иначе более старое
     # «Continue» снова открыло бы кейс, закрытый позже
     for row in sorted(parsed, key=lambda r: r.start or datetime.min):
+        if row.error == SECOND_WAVE_SKIPPED:
+            continue
         if row.error:
             stats.errors.append(f"Строка {row.row}: {row.error}")
             continue
@@ -744,6 +788,7 @@ def apply_import(db: Session, content: bytes, mapping_raw: Optional[str], import
             from_shift_id=shift.id if shift else None,
             handover_notes=row.notes or IMPORT_NOTE,
             source_key=row.source_key,
+            wave=1,  # журнал Excel — только 1 волна
             created_at=when,
         )
         db.add(handover)

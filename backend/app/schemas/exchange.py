@@ -40,3 +40,4 @@ class ImportResult(BaseModel):
     assets_closed: int = 0
     assets_reopened: int = 0
     last_handover: Optional[str] = None
+    second_wave_skipped: int = 0

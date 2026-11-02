@@ -52,6 +52,7 @@ def public_view(user: User, viewer: User) -> UserPublic:
         name=user.name,
         position=user.position,
         is_active=user.is_active,
+        wave=user.wave or 1,
         phone=user.phone if full or user.show_phone else None,
         telegram_id=user.telegram_id if full or user.show_telegram else None,
         email=user.email if full or user.show_email else None,
@@ -102,8 +103,10 @@ def update_user(
         _ensure_username_free(db, user_in.username, exclude_id=user.id)
         user.username = user_in.username
 
-    for key, value in user_in.model_dump(exclude={"username", "is_active"}).items():
+    for key, value in user_in.model_dump(exclude={"username", "is_active", "wave"}).items():
         setattr(user, key, value)
+    if user_in.wave is not None:
+        user.wave = user_in.wave
     if user_in.is_active is not None:
         if user.is_active and not user_in.is_active:
             user.revoke_sessions()  # отключённый сотрудник сразу теряет доступ во всех браузерах

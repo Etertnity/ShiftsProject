@@ -20,6 +20,8 @@ const BASE_TARGETS = [
 ];
 
 const MAX_SIZE = 5 * 1024 * 1024;
+// Так сервер помечает строки сотрудников 2 волны: в журнал Excel они не входят
+const SECOND_WAVE = '2 волна — в журнал Excel не входит';
 
 const formatPeriod = (row: ImportRow) => {
   if (!row.start) return '—';
@@ -102,7 +104,8 @@ const ImportExcelModal: React.FC<ImportExcelModalProps> = ({ open, onClose, onIm
   const rows = preview?.rows ?? [];
   const fresh = rows.filter((r) => !r.duplicate && !r.error);
   const duplicates = rows.filter((r) => r.duplicate).length;
-  const errors = rows.filter((r) => r.error).length;
+  const secondWave = rows.filter((r) => r.error === SECOND_WAVE).length;
+  const errors = rows.filter((r) => r.error && r.error !== SECOND_WAVE).length;
   const canImport = !!file && !!preview && !preview.mapping_error && fresh.length > 0 && !loading;
 
   const runImport = async () => {
@@ -140,7 +143,7 @@ const ImportExcelModal: React.FC<ImportExcelModalProps> = ({ open, onClose, onIm
       onClose={onClose}
       size="xl"
       title="Загрузка из Excel"
-      description="Журнал передач: строка — смена, колонки — дата, сотрудник, категории кейсов и «Разное»"
+      description="Журнал передач 1 волны: строка — смена, колонки — дата, сотрудник, категории кейсов и «Разное»"
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Отмена</Button>
@@ -235,6 +238,7 @@ const ImportExcelModal: React.FC<ImportExcelModalProps> = ({ open, onClose, onIm
               <div className="flex flex-wrap gap-2 text-sm">
                 <span className="rounded-lg bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700">Новых смен: {fresh.length}</span>
                 {duplicates > 0 && <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-gray-600">Уже на сайте: {duplicates}</span>}
+                {secondWave > 0 && <span className="rounded-lg bg-cyan-50 px-2.5 py-1 text-cyan-700">2 волна, пропускаем: {secondWave}</span>}
                 {errors > 0 && <span className="rounded-lg bg-red-50 px-2.5 py-1 text-red-700">С ошибками: {errors}</span>}
               </div>
 
@@ -252,13 +256,15 @@ const ImportExcelModal: React.FC<ImportExcelModalProps> = ({ open, onClose, onIm
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {rows.map((row) => (
-                        <tr key={row.row} className={clsx(row.duplicate && 'text-gray-400')} title={row.sample || undefined}>
+                        <tr key={row.row} className={clsx((row.duplicate || row.error === SECOND_WAVE) && 'text-gray-400')} title={row.sample || undefined}>
                           <td className="px-3 py-1.5 tabular-nums text-gray-400">{row.row}</td>
                           <td className="whitespace-nowrap px-3 py-1.5 tabular-nums">{formatPeriod(row)}</td>
                           <td className="max-w-[10rem] truncate px-3 py-1.5">{row.person || '—'}</td>
                           <td className="px-3 py-1.5 tabular-nums">{itemsTotal(row)}</td>
                           <td className="px-3 py-1.5">
-                            {row.error ? (
+                            {row.error === SECOND_WAVE ? (
+                              <span className="text-gray-500">2 волна — пропускается</span>
+                            ) : row.error ? (
                               <span className="inline-flex items-center gap-1 text-red-600"><AlertTriangle className="h-3.5 w-3.5" />{row.error}</span>
                             ) : row.duplicate ? (
                               'уже загружена'

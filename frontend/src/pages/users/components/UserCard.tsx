@@ -5,6 +5,7 @@ import { ContactList } from '../../../components/users/ContactLinks';
 import Avatar from '../../../components/ui/Avatar';
 import Badge from '../../../components/ui/Badge';
 import IconButton from '../../../components/ui/IconButton';
+import WaveBadge from '../../../components/ui/WaveBadge';
 import { UserAdmin } from '../../../types';
 
 interface UserCardProps {
@@ -31,6 +32,7 @@ const UserCard: React.FC<UserCardProps> = ({ user, isSelf, onEdit, onResetPasswo
                 <span className="inline-flex items-center gap-1"><Shield className="h-3 w-3" />Админ</span>
               </Badge>
             )}
+            <WaveBadge wave={user.wave} />
             {!user.is_active && <Badge>Отключён</Badge>}
             {user.must_change_password && <Badge className="bg-amber-50 text-amber-700 ring-amber-200">Временный пароль</Badge>}
           </div>

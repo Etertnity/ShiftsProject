@@ -10,6 +10,8 @@ class ShiftHandover(Base):
     id = Column(Integer, primary_key=True, index=True)
     from_shift_id = Column(Integer, nullable=True)
     to_shift_id = Column(Integer, nullable=True)
+    # Волна, которая передаёт дела (1 — сменные, 2 — дневные «2 через 2»); видят все
+    wave = Column(Integer, default=1, nullable=False, server_default='1')
     handover_notes = Column(Text, nullable=False)
     # Откуда пришла передача при импорте из Excel («xlsx:<начало смены>:<фамилия>») — повторный импорт её не задвоит
     source_key = Column(String, nullable=True, index=True)

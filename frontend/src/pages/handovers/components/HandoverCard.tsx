@@ -3,6 +3,7 @@ import clsx from 'clsx';
 import { ArrowDown, ArrowRight, ChevronDown, Pencil, Trash2 } from 'lucide-react';
 import { AssetStatusBadge, CategoryIcon } from '../../../components/assets/AssetBadges';
 import IconButton from '../../../components/ui/IconButton';
+import WaveBadge from '../../../components/ui/WaveBadge';
 import { useCatalog } from '../../../context/CatalogContext';
 import { Asset, AssetEntry, Handover, Shift } from '../../../types';
 import { formatDateTime, formatDayShort } from '../../../utils/datetime';
@@ -167,7 +168,9 @@ const HandoverCard: React.FC<HandoverCardProps> = ({ handover, shiftsById, onEdi
     <article className="card p-4 sm:p-5">
       <header className="mb-3 flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="font-semibold text-gray-900">Передача #{handover.id}</h3>
+          <h3 className="flex flex-wrap items-center gap-2 font-semibold text-gray-900">
+            Передача #{handover.id} <WaveBadge wave={handover.wave} />
+          </h3>
           <p className="text-xs text-gray-500">{formatDateTime(handover.created_at)}</p>
         </div>
         <div className="flex shrink-0 gap-1">

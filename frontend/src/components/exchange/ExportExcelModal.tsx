@@ -100,6 +100,7 @@ const ExportExcelModal: React.FC<ExportExcelModalProps> = ({ open, onClose }) =>
           <li><b className="font-medium text-gray-900">Передачи</b> — строка на смену, кейсы по категориям: «N) Open/Continue/Close CASE#… — что сделано»</li>
           <li><b className="font-medium text-gray-900">Кейсы</b> — все кейсы с текущим статусом и последней записью</li>
           <li><b className="font-medium text-gray-900">История</b> — каждое изменение кейсов за период</li>
+          <li className="text-gray-500">Только 1 волна: передачи и записи 2 волны в файл не попадают</li>
         </ul>
       </div>
     </Modal>

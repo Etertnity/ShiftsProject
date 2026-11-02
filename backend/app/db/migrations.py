@@ -38,6 +38,8 @@ NEW_COLUMNS = [
     ("users", "show_email", "BOOLEAN NOT NULL DEFAULT 1"),
     ("users", "token_version", "INTEGER NOT NULL DEFAULT 0"),
     ("shift_handovers", "source_key", "VARCHAR"),
+    ("users", "wave", "INTEGER NOT NULL DEFAULT 1"),
+    ("shift_handovers", "wave", "INTEGER NOT NULL DEFAULT 1"),
 ]
 
 

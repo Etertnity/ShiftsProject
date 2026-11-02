@@ -30,7 +30,7 @@ def test_logins_are_hidden_from_everyone_but_owner(client, admin_headers, user_h
     assert any(u["phone"] is None or "phone" in u for u in admin_list)  # контакты админу видны
 
     public = client.get("/api/users/public", headers=user_headers).json()
-    assert set(public[0]) == {"id", "name", "position", "is_active", "phone", "telegram_id", "email"}  # без логина
+    assert set(public[0]) == {"id", "name", "position", "is_active", "wave", "phone", "telegram_id", "email"}  # без логина
     assert client.get(f"/api/users/{worker['id']}", headers=user_headers).status_code == 403
 
 
