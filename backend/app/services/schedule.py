@@ -25,6 +25,14 @@ def now_local() -> datetime:
     return local_now().replace(tzinfo=None)
 
 
+PAST_LOCKED = "Начавшиеся и прошедшие смены может менять только администратор"
+
+
+def has_started(date_key: str, start_time: str, now: Optional[datetime] = None) -> bool:
+    """Смена уже началась — по ней есть факт отработки, и менять её может только администратор."""
+    return datetime.fromisoformat(f"{date_key}T{start_time}") <= (now or now_local())
+
+
 def shift_interval(shift: Shift) -> Tuple[datetime, datetime]:
     start = datetime.fromisoformat(f"{shift.date}T{shift.start_time}")
     end = datetime.fromisoformat(f"{shift.date}T{shift.end_time}")
@@ -96,8 +104,9 @@ def _daterange(start: date, end: date) -> Iterable[date]:
         current += timedelta(days=1)
 
 
-def generate(db: Session, params: ScheduleGenerate) -> ScheduleGenerateResult:
+def generate(db: Session, params: ScheduleGenerate, allow_past: bool = True) -> ScheduleGenerateResult:
     """
+    allow_past=False (не администратор): начавшиеся смены не создаются и не удаляются.
     Цикл «день → ночь → отсыпной → выходной»: кто работает днём D, выходит в ночь D+1,
     а следующий его день — через N дней (N — число сотрудников в ротации).
     Сотрудники идут по порядку: первый днём в date_from, второй днём в date_from+1 и т.д.
@@ -127,7 +136,14 @@ def generate(db: Session, params: ScheduleGenerate) -> ScheduleGenerateResult:
         .filter(Shift.date >= params.date_from, Shift.date <= params.date_to)
         .all()
     )
+    now = now_local()
+    locked_slots = set()
+    if not allow_past:
+        # Начавшиеся смены остаются как есть: их слоты заняты и в режиме «построить заново»
+        locked_slots = {(s.date, s.shift_type) for s in existing if has_started(s.date, s.start_time, now)}
+        existing = [s for s in existing if not has_started(s.date, s.start_time, now)]
     occupied = {(s.date, s.shift_type) for s in existing}
+    past_skipped = 0
 
     planned: List[GeneratedShift] = []
     skipped = 0
@@ -140,7 +156,10 @@ def generate(db: Session, params: ScheduleGenerate) -> ScheduleGenerateResult:
             ("day", day_worker, DAY_PRESET),
             ("night", night_worker, NIGHT_PRESET),
         ):
-            if params.mode == "fill" and (day_key, shift_type) in occupied:
+            if not allow_past and has_started(day_key, start, now):
+                past_skipped += 1
+                continue
+            if (day_key, shift_type) in locked_slots or (params.mode == "fill" and (day_key, shift_type) in occupied):
                 skipped += 1
                 continue
             planned.append(GeneratedShift(
@@ -148,6 +167,8 @@ def generate(db: Session, params: ScheduleGenerate) -> ScheduleGenerateResult:
                 user_id=worker.id, user_name=worker.name,
             ))
 
+    if past_skipped:
+        warnings.append(f"Пропущено начавшихся и прошедших смен: {past_skipped} — их меняет только администратор.")
     removed = len(existing) if params.mode == "replace" else 0
     if params.preview:
         return ScheduleGenerateResult(shifts=planned, created=0, skipped=skipped, removed=removed, warnings=warnings)

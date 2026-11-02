@@ -86,3 +86,57 @@ export interface ShiftStats {
   date_to: string;
   items: ShiftStatsItem[];
 }
+
+/** Табель месяца — та же раскладка, что в Excel-файле графика сменных */
+export interface TimesheetDay {
+  day: number;
+  weekday: string;
+}
+
+export type TimesheetStatus = 'worked' | 'plan' | 'changed' | 'missed';
+
+export interface TimesheetCell {
+  day: number;
+  kind: 'day' | 'night';
+  hours: number;
+  status: TimesheetStatus;
+}
+
+export interface TimesheetRow {
+  user_id: number;
+  name: string;
+  worked: TimesheetCell[];
+  standard: TimesheetCell[];
+  worked_shifts: number;
+  standard_shifts: number;
+}
+
+export interface Timesheet {
+  month: string; // YYYY-MM
+  days: TimesheetDay[];
+  rows: TimesheetRow[];
+}
+
+export interface ScheduleImportMonth {
+  month: string;
+  label: string;
+  new: number;
+  changed: number;
+  same: number;
+  people: string[];
+}
+
+export interface ScheduleImportPreview {
+  sheet: string;
+  months: ScheduleImportMonth[];
+  unknown_people: string[];
+  warnings: string[];
+}
+
+export interface ScheduleImportResult {
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+  warnings: string[];
+}

@@ -3,8 +3,8 @@
 Формат листа «Передачи» повторяет журнал, который смены вели в Excel вручную:
 
     Дата                     | Фамилия сменного | <категория 1> | <категория 2> | … | Разное
-    17.10.2026 21:00 -       | Лагздынь         | 1) Continue CASE#391482 Kosygin - замена модема…
-    18.10.2026 09:00         |                  | 2) Open CASE#392835 Zaliv Baikal - выход из сети…
+    17.10.2026 21:00 -       | Петров           | 1) Continue CASE#100 Alpha - замена модема…
+    18.10.2026 09:00         |                  | 2) Open CASE#101 Beta - выход из сети…
 
 Каждая строка — одна передача смены. В ячейке категории — нумерованный список кейсов:
 «N) <действие> <название> - <что сделано>», где действие — Open / Continue / Close / Open-Close.
@@ -360,6 +360,12 @@ class ParsedRow:
 
 def read_upload(content: bytes):
     """Открывает xlsx с проверками размера; возвращает лист журнала передач."""
+    workbook = open_workbook(content)
+    return workbook["Передачи"] if "Передачи" in workbook.sheetnames else workbook.worksheets[0]
+
+
+def open_workbook(content: bytes):
+    """Открывает загруженный xlsx только для чтения, с проверками размера до и после распаковки."""
     if not content:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Файл пустой")
     if len(content) > MAX_UPLOAD_BYTES:
@@ -373,11 +379,9 @@ def read_upload(content: bytes):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Файл слишком большой после распаковки")
     try:
         # read_only — потоковое чтение; XML разбирается через defusedxml (защита от XXE и «бомб»)
-        workbook = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        return load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     except Exception:  # noqa: BLE001 — openpyxl бросает самые разные исключения на битых файлах
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Не удалось прочитать файл Excel")
-    sheet = workbook["Передачи"] if "Передачи" in workbook.sheetnames else workbook.worksheets[0]
-    return sheet
 
 
 def _cell_text(value) -> str:

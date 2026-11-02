@@ -18,7 +18,7 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <PageHeader title="Настройки" description="Категории активов, их поля и статусы — без участия разработчика" />
+      <PageHeader title="Настройки" description="Категории кейсов, их поля и статусы" />
 
       <div className="flex gap-1 rounded-xl bg-gray-100 p-1" role="tablist">
         {TABS.map(({ key, label, icon: Icon }) => (

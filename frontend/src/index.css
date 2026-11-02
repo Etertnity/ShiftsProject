@@ -12,6 +12,16 @@
     @apply bg-gray-50 text-gray-900 antialiased;
     min-height: 100vh;
     min-height: 100dvh;
+    /* Морской фон: свечение «огней порта» в углах, фиксировано при прокрутке */
+    background-image: radial-gradient(60rem 30rem at 85% -10%, rgb(56 132 255 / 0.10), transparent 60%),
+      radial-gradient(40rem 24rem at 0% 100%, rgb(245 183 49 / 0.06), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  .dark body,
+  body:where(.dark *) {
+    background-image: radial-gradient(60rem 30rem at 85% -10%, rgb(56 132 255 / 0.16), transparent 60%),
+      radial-gradient(40rem 24rem at 0% 100%, rgb(245 183 49 / 0.07), transparent 60%);
   }
 
   /* На iOS поля с шрифтом < 16px вызывают автозум — держим 16px на мобильных */
@@ -25,6 +35,11 @@
 @layer components {
   .card {
     @apply rounded-2xl border border-gray-200 bg-surface shadow-card;
+  }
+
+  /* Ночью карточки — как приборные панели: лёгкий блик сверху */
+  .dark .card {
+    background-image: linear-gradient(180deg, rgb(255 255 255 / 0.03), transparent 45%);
   }
 
   .form-input {
@@ -45,6 +60,60 @@
   }
 }
 
+@keyframes vessel-bob {
+  0%,
+  100% {
+    translate: 0 0;
+    rotate: -0.35deg;
+  }
+  50% {
+    translate: 0 1.5px;
+    rotate: 0.35deg;
+  }
+}
+
+@keyframes vessel-light {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes vsat-ping {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
+@keyframes satellite-drift {
+  from {
+    translate: -14vw 0;
+    rotate: -6deg;
+  }
+  to {
+    translate: 10vw 1.5vh;
+    rotate: 4deg;
+  }
+}
+
+@keyframes vessel-wake {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @layer utilities {
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
@@ -57,6 +126,39 @@
   .theme-transition *::after {
     transition-property: background-color, border-color, color, fill, stroke !important;
     transition-duration: 300ms !important;
+  }
+
+  /* Морская сцена: качка судна, ходовые огни, кильватерный след. Без анимаций при «уменьшить движение» */
+  @media (prefers-reduced-motion: no-preference) {
+    .vessel-bob {
+      animation: vessel-bob 7s ease-in-out infinite;
+      transform-origin: 50% 90%;
+    }
+    .vessel-light {
+      animation: vessel-light 2.4s ease-in-out infinite;
+    }
+    .vessel-wake {
+      animation: vessel-wake 3.5s ease-in-out infinite;
+    }
+    /* Сигнал VSAT: кольца расходятся от радома */
+    .vsat-ping {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: vsat-ping 2.7s ease-out infinite;
+    }
+    .satellite-drift {
+      animation: satellite-drift 90s ease-in-out infinite alternate;
+    }
+    .sat-beam {
+      animation: vessel-wake 4s ease-in-out infinite;
+    }
+  }
+
+  /* Без анимации кольца сигнала не показываем — иначе они висят статичными кругами */
+  @media (prefers-reduced-motion: reduce) {
+    .vsat-ping {
+      display: none;
+    }
   }
 
   /* Горизонтальные ленты (фильтры) прокручиваются пальцем без видимой полосы */

@@ -13,7 +13,6 @@ import { Asset, AssetEntry, Handover, Shift } from '../../../types';
 import { addDays, parseServerDate, todayKey } from '../../../utils/datetime';
 import { getErrorMessage } from '../../../utils/errors';
 import { findActiveShifts, findNextShift, formatShiftLabel, shiftInterval, sortShifts } from '../../../utils/shifts';
-import { pluralize } from '../../../utils/strings';
 import { AssetDraft } from './HandoverAssetCard';
 import HandoverCaseSections from './HandoverCaseSections';
 import QuickAssetForm from './QuickAssetForm';
@@ -224,7 +223,7 @@ const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, s
       open={open}
       onClose={onClose}
       title={handover ? `Передача #${handover.id}` : 'Передать смену'}
-      description={handover ? 'Новые отметки добавятся к истории кейсов' : 'Отметьте, что изменилось по кейсам, — остальное заполнено'}
+      description={handover ? 'Новые отметки добавятся к истории кейсов' : 'Отметьте только то, что изменилось. Остальное уже заполнено'}
       size="xl"
       footer={
         <>
@@ -271,7 +270,7 @@ const HandoverFormModal: React.FC<HandoverFormModalProps> = ({ open, handover, s
             <div>
               <h3 className="font-semibold text-gray-900">Что по кейсам?</h3>
               <p className="text-xs text-gray-500">
-                {includedAssets.length} {pluralize(includedAssets.length, ['кейс', 'кейса', 'кейсов'])} в передаче — все открытые. Откройте раздел и отметьте только то, что изменилось.
+                В передаче все открытые кейсы — {includedAssets.length}. Откройте нужный раздел.
               </p>
             </div>
             {!quickOpen && (

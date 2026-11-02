@@ -116,3 +116,58 @@ class ShiftStats(BaseModel):
     date_from: str
     date_to: str
     items: List[ShiftStatsItem]
+
+
+# --- Табель: та же раскладка, что в Excel-файле графика сменных ---------------------
+
+class TimesheetDay(BaseModel):
+    day: int
+    weekday: str  # Пн … Вс
+
+
+class TimesheetCell(BaseModel):
+    day: int
+    kind: Literal["day", "night"]
+    hours: float
+    # worked — отработано (зелёный), plan — ещё впереди, changed — не по стандартному графику (жёлтый),
+    # missed — по графику была смена, но не отработана (красный)
+    status: Literal["worked", "plan", "changed", "missed"]
+
+
+class TimesheetRow(BaseModel):
+    user_id: int
+    name: str
+    worked: List[TimesheetCell]
+    standard: List[TimesheetCell]
+    worked_shifts: float
+    standard_shifts: float
+
+
+class Timesheet(BaseModel):
+    month: str  # YYYY-MM
+    days: List[TimesheetDay]
+    rows: List[TimesheetRow]
+
+
+class ScheduleImportMonth(BaseModel):
+    month: str  # YYYY-MM
+    label: str
+    new: int
+    changed: int
+    same: int
+    people: List[str]
+
+
+class ScheduleImportPreview(BaseModel):
+    sheet: str
+    months: List[ScheduleImportMonth]
+    unknown_people: List[str]
+    warnings: List[str]
+
+
+class ScheduleImportResult(BaseModel):
+    created: int
+    updated: int
+    unchanged: int
+    skipped: int
+    warnings: List[str]

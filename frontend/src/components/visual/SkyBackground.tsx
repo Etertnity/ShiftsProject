@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import clsx from 'clsx';
 import { FRAGMENT_SHADER, VERTEX_SHADER } from './skyShader';
 
@@ -12,9 +12,10 @@ const MAX_PIXEL_RATIO = 1.5;
 const NIGHT_TRANSITION_MS = 1500;
 
 // CSS-градиенты — то, что видно до первого кадра и там, где WebGL недоступен
+// Горизонт на 66% сверху — как в шейдере (HORIZON = 0.34 от низа)
 const FALLBACK = {
-  day: 'linear-gradient(160deg, #2154db 0%, #3399f2 100%)',
-  night: 'linear-gradient(160deg, #080a1f 0%, #1a1442 100%)',
+  day: 'linear-gradient(180deg, #0a1a3d 0%, #4d3f6b 42%, #ff9442 65.9%, #12294a 66%, #050f20 100%)',
+  night: 'linear-gradient(180deg, #02070f 0%, #0b1a33 65.9%, #071224 66%, #02060e 100%)',
 };
 
 const compile = (gl: WebGLRenderingContext, type: number, source: string) => {
@@ -37,21 +38,31 @@ const prefersReducedMotion = () =>
  * разрешение ограничено — нагрузка минимальная даже на слабых ноутбуках и телефонах.
  */
 const SkyBackground: React.FC<SkyBackgroundProps> = ({ night, className }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const nightTarget = useRef(night ? 1 : 0);
-  const [ready, setReady] = useState(false);
 
   nightTarget.current = night ? 1 : 0;
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return undefined;
+    const container = containerRef.current;
+    if (!container) return undefined;
+    // Холст создаётся заново при каждом запуске эффекта: на «отпущенном» холсте WebGL больше не работает,
+    // а React (StrictMode, горячая перезагрузка) может перезапустить эффект на том же элементе
+    const canvas = document.createElement('canvas');
+    canvas.className = 'block h-full w-full opacity-0 transition-opacity duration-700';
+    container.appendChild(canvas);
     const gl = canvas.getContext('webgl', { antialias: false, alpha: false, powerPreference: 'low-power' });
-    if (!gl) return undefined; // остаётся CSS-градиент
+    if (!gl) {
+      canvas.remove();
+      return undefined; // остаётся CSS-градиент
+    }
 
     // Контекст WebGL нужно освобождать явно: браузер держит не больше ~16 живых контекстов,
     // и без этого каждый заход на главную/экран входа оставлял бы ещё один до сборки мусора
-    const releaseContext = () => gl.getExtension('WEBGL_lose_context')?.loseContext();
+    const releaseContext = () => {
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      container.replaceChildren();
+    };
 
     const vs = compile(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
     const fs = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
@@ -104,7 +115,14 @@ const SkyBackground: React.FC<SkyBackgroundProps> = ({ night, className }) => {
       gl.uniform2f(uResolution, canvas.width, canvas.height);
     };
 
+    // Размер пересчитываем, только когда он мог измениться: при ResizeObserver и пока холст ещё не получил
+    // реальные размеры (при монтировании во время перехода страницы ширина бывает нулевой)
+    let sizeDirty = true;
     const draw = (ts: number) => {
+      if (sizeDirty || canvas.width < 2 || canvas.height < 2) {
+        resize();
+        sizeDirty = canvas.clientWidth < 1 || canvas.clientHeight < 1;
+      }
       const dt = ts - lastTs;
       lastTs = ts;
       const target = nightTarget.current;
@@ -134,9 +152,8 @@ const SkyBackground: React.FC<SkyBackgroundProps> = ({ night, className }) => {
       }
     };
 
-    resize();
     draw(performance.now());
-    setReady(true);
+    canvas.style.opacity = '1';
     kick();
 
     const observer = new IntersectionObserver(([entry]) => {
@@ -146,7 +163,7 @@ const SkyBackground: React.FC<SkyBackgroundProps> = ({ night, className }) => {
     observer.observe(canvas);
     document.addEventListener('visibilitychange', kick);
     const resizeObserver = new ResizeObserver(() => {
-      resize();
+      sizeDirty = true;
       if (!frame) draw(performance.now());
     });
     resizeObserver.observe(canvas);
@@ -162,7 +179,7 @@ const SkyBackground: React.FC<SkyBackgroundProps> = ({ night, className }) => {
       cancelAnimationFrame(frame);
       frame = 0;
       visible = false;
-      setReady(false);
+      canvas.style.opacity = '0';
     };
     canvas.addEventListener('webglcontextlost', onContextLost);
 
@@ -182,17 +199,13 @@ const SkyBackground: React.FC<SkyBackgroundProps> = ({ night, className }) => {
   }, []);
 
   return (
+    // Холст добавляется в этот блок из эффекта; до первого кадра виден CSS-градиент
     <div
+      ref={containerRef}
       aria-hidden
       className={clsx('pointer-events-none absolute inset-0 overflow-hidden', className)}
       style={{ background: night ? FALLBACK.night : FALLBACK.day, transition: 'background 1.5s ease' }}
-    >
-      <canvas
-        ref={canvasRef}
-        className="h-full w-full transition-opacity duration-700"
-        style={{ opacity: ready ? 1 : 0, display: 'block' }}
-      />
-    </div>
+    />
   );
 };
 

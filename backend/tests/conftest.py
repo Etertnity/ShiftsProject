@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 import sys
 import tempfile
 from pathlib import Path
@@ -27,6 +28,15 @@ ADMIN = {"username": "Sideffect", "password": "admin123"}
 ADMIN_OWN_PASSWORD = "admin-own-pass"
 WORKER_TEMP_PASSWORD = "secret12"
 WORKER_OWN_PASSWORD = "worker-own-pass"
+
+
+@pytest.fixture(autouse=True)
+def fixed_now(monkeypatch):
+    """Тестовые смены — в 2026 году; «сейчас» фиксируем раньше них, чтобы они считались будущими
+    (начавшиеся смены может менять только администратор)."""
+    from app.services import schedule
+
+    monkeypatch.setattr(schedule, "now_local", lambda: datetime(2026, 1, 5, 12, 0))
 
 
 @pytest.fixture()

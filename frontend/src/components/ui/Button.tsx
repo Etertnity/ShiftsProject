@@ -7,7 +7,8 @@ type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type Size = 'sm' | 'md';
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-primary-600 text-white hover:bg-primary-500 focus-visible:ring-primary-500/40 shadow-sm',
+  // Главное действие — «золото маяка» с тёмно-синим текстом: контраст > 9:1 в обеих темах
+  primary: 'bg-accent-400 text-navy-900 hover:bg-accent-300 focus-visible:ring-accent-400/50 shadow-sm',
   secondary: 'bg-surface text-gray-700 border border-gray-300 hover:bg-gray-50 focus-visible:ring-gray-400/30 shadow-sm',
   danger: 'bg-red-600 text-white hover:bg-red-500 focus-visible:ring-red-500/40 shadow-sm',
   ghost: 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-gray-400/30',

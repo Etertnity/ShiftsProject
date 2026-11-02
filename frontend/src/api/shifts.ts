@@ -1,4 +1,4 @@
-import { CreateShift, ScheduleGenerateParams, ScheduleGenerateResult, Shift, ShiftPartInput, ShiftStats } from '../types';
+import { CreateShift, ScheduleGenerateParams, ScheduleGenerateResult, Shift, ShiftPartInput, ShiftStats, Timesheet } from '../types';
 import { apiClient } from './client';
 
 export interface ShiftQuery {
@@ -29,4 +29,7 @@ export const shiftsApi = {
     apiClient.post<ScheduleGenerateResult>('/api/shifts/generate', params).then((res) => res.data),
   stats: (dateFrom: string, dateTo: string): Promise<ShiftStats> =>
     apiClient.get<ShiftStats>('/api/shifts/stats', { params: { date_from: dateFrom, date_to: dateTo } }).then((res) => res.data),
+  /** Табель месяца (YYYY-MM): «отработано» и «станд.график» по каждому сотруднику */
+  timesheet: (month: string): Promise<Timesheet> =>
+    apiClient.get<Timesheet>('/api/shifts/timesheet', { params: { month } }).then((res) => res.data),
 };

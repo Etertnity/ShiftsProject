@@ -107,7 +107,7 @@ const HandoversPage: React.FC = () => {
     <div className="space-y-4 sm:space-y-5">
       <PageHeader
         title="Передачи смен"
-        description="Журнал передачи дежурства между сменами"
+        description="Что передавала каждая смена"
         actions={
           <>
             <Button variant="secondary" icon={FileDown} onClick={() => setExportOpen(true)}>Excel</Button>

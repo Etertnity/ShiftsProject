@@ -110,7 +110,7 @@ const AssetsPage: React.FC = () => {
     <div className="space-y-4 sm:space-y-5">
       <PageHeader
         title="Активы"
-        description="Кейсы, изменения и обращения, которые переходят из смены в смену"
+        description="Кейсы, change-запросы и обращения клиентов"
         actions={
           <>
             <Button variant="secondary" icon={FileDown} onClick={() => setExportOpen(true)}>Excel</Button>

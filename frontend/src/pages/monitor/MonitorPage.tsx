@@ -6,6 +6,7 @@ import { monitoringApi } from '../../api';
 import Button from '../../components/ui/Button';
 import EmptyState from '../../components/ui/EmptyState';
 import PageHeader from '../../components/ui/PageHeader';
+import FleetGlobe from '../../components/visual/FleetGlobe';
 import { PageLoader } from '../../components/ui/Spinner';
 import { useTheme } from '../../context/ThemeContext';
 import { useAsyncData } from '../../hooks/useAsyncData';
@@ -17,6 +18,7 @@ import VesselCard from './components/VesselCard';
 import VesselFormModal from './components/VesselFormModal';
 import { Filter, isStale, lossStats, matchesQuery, Period, PERIODS, SortMode, vesselState } from './monitorUtils';
 import { useMonitorData } from './useMonitorData';
+import { pluralize } from '../../utils/strings';
 
 // Личные настройки вида — только в этом браузере
 const prefs = {
@@ -195,7 +197,7 @@ const MonitorPage: React.FC = () => {
     <div className="space-y-4">
       <PageHeader
         title="ICMP-монитор"
-        description={`Потери пакетов до судов · пороги ${cfg.warn_threshold}% и ${cfg.crit_threshold}%`}
+        description={`Потери пакетов до судов по данным Zabbix. Жёлтый — от ${cfg.warn_threshold}%, красный — от ${cfg.crit_threshold}%`}
         actions={
           <>
             {hidden.length > 0 && (
@@ -215,6 +217,38 @@ const MonitorPage: React.FC = () => {
           </>
         }
       />
+
+      {/* Сводка по VSAT-каналам и глобус с портами, маршрутами и спутниками. dark — всегда «ночная» панель */}
+      <section className="dark relative isolate grid items-center gap-4 overflow-hidden rounded-3xl bg-gradient-to-br from-navy-900 via-[#0d2340] to-navy-950 p-5 text-white shadow-pop sm:grid-cols-[1fr_auto] sm:p-8">
+        <div aria-hidden className="absolute -right-24 -top-24 -z-10 h-80 w-80 rounded-full bg-sky-500/15 blur-3xl" />
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/60">VSAT-каналы</p>
+          <h2 className="mt-2 font-display text-3xl font-bold uppercase leading-none tracking-wide sm:text-4xl">Связь с судами</h2>
+          <p className="mt-2 text-sm text-white/70">
+            {counts.crit > 0
+              ? `Высокие потери на ${counts.crit} ${pluralize(counts.crit, ['судне', 'судах', 'судах'])}`
+              : counts.warn > 0
+                ? `Повышенные потери на ${counts.warn} ${pluralize(counts.warn, ['судне', 'судах', 'судах'])}`
+                : 'Данные обновляются раз в минуту'}
+          </p>
+          <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:max-w-md sm:grid-cols-4">
+            {[
+              { label: 'Судов', value: counts.all, tone: 'text-white' },
+              { label: `Потери ≥ ${cfg.crit_threshold}%`, value: counts.crit, tone: 'text-red-400' },
+              { label: `Потери ≥ ${cfg.warn_threshold}%`, value: counts.warn, tone: 'text-amber-300' },
+              { label: 'Нет данных', value: counts.nodata, tone: 'text-white/70' },
+            ].map(({ label, value, tone }) => (
+              <div key={label} className="border-l border-white/15 pl-3">
+                <dt className="text-[11px] uppercase tracking-wider text-white/55">{label}</dt>
+                <dd className={`font-display text-3xl font-semibold leading-tight tabular-nums ${tone}`}>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        <div className="mx-auto w-[min(70vw,300px)] sm:w-[260px] lg:w-[320px]">
+          <FleetGlobe />
+        </div>
+      </section>
 
       {!configured && (
         <div className="flex gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -321,7 +355,7 @@ const MonitorPage: React.FC = () => {
         <div className="card">
           <EmptyState
             icon={Search}
-            title={vessels.length === 0 ? 'Список судов пуст' : q ? `Ничего не найдено по запросу «${query.trim()}»` : 'В этой категории сейчас нет судов'}
+            title={vessels.length === 0 ? 'Судов пока нет — добавьте первое' : q ? `По запросу «${query.trim()}» ничего нет` : 'В этой категории сейчас нет судов'}
             action={
               vessels.length > 0 && (q || filter !== 'all') ? (
                 <Button

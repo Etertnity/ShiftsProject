@@ -1,11 +1,15 @@
 import React, { useMemo, useState } from 'react';
+import clsx from 'clsx';
 import { AnimatePresence, m } from 'motion/react';
-import { ChevronLeft, ChevronRight, Moon, Plus, Sun, Users, Wand2 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, FileDown, FileUp, Moon, Plus, Sun, Table2, Users, Wand2 } from 'lucide-react';
 import { shiftsApi, usersApi } from '../../api';
+import ScheduleExportModal from '../../components/exchange/ScheduleExportModal';
+import ScheduleImportModal from '../../components/exchange/ScheduleImportModal';
 import Button from '../../components/ui/Button';
 import IconButton from '../../components/ui/IconButton';
 import PageHeader from '../../components/ui/PageHeader';
 import { PageLoader } from '../../components/ui/Spinner';
+import { useCurrentUser } from '../../context/AuthContext';
 import { useAsyncData } from '../../hooks/useAsyncData';
 import { useNow } from '../../hooks/useNow';
 import { Shift } from '../../types';
@@ -24,6 +28,19 @@ import MonthCalendar from './components/MonthCalendar';
 import ScheduleGeneratorModal from './components/ScheduleGeneratorModal';
 import ShiftFormModal, { ShiftFormMode } from './components/ShiftFormModal';
 import ShiftStatsPanel from './components/ShiftStatsPanel';
+import TimesheetTable, { TIMESHEET_LEGEND } from './components/TimesheetTable';
+
+type View = 'calendar' | 'timesheet';
+const VIEW_KEY = 'shifts-view';
+
+// Выбранный вид — удобство одного браузера; без localStorage просто открываем календарь
+const readView = (): View => {
+  try {
+    return localStorage.getItem(VIEW_KEY) === 'timesheet' ? 'timesheet' : 'calendar';
+  } catch {
+    return 'calendar';
+  }
+};
 
 const MONTH_SLIDE = {
   enter: (dir: number) => ({ opacity: 0, x: dir * 24 }),
@@ -52,8 +69,22 @@ const ShiftsPage: React.FC = () => {
   const [userFilter, setUserFilter] = useState(0);
   const [modal, setModal] = useState<ModalState | null>(null);
   const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [view, setViewState] = useState<View>(readView);
+  const isAdmin = useCurrentUser().is_admin;
+
+  const setView = (next: View) => {
+    setViewState(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // приватный режим — вид просто не запомнится
+    }
+  };
 
   const monthStart = dateKeyFromParts(month.year, month.month, 1);
+  const monthKey = monthStart.slice(0, 7);
   const monthEnd = dateKeyFromParts(month.year, month.month, daysInMonth(month));
 
   const users = useAsyncData(() => usersApi.getAllPublic(), [], 'Не удалось загрузить сотрудников');
@@ -63,6 +94,16 @@ const ShiftsPage: React.FC = () => {
     'Не удалось загрузить смены',
   );
   const monthStats = useAsyncData(() => shiftsApi.stats(monthStart, monthEnd), [monthStart, monthEnd], 'Не удалось загрузить статистику');
+  // Табель грузим, только когда он открыт
+  const timesheet = useAsyncData(
+    () => (view === 'timesheet' ? shiftsApi.timesheet(monthKey) : Promise.resolve(null)),
+    [view, monthKey],
+    'Не удалось загрузить табель',
+  );
+  const visibleSheet = useMemo(
+    () => (timesheet.data && userFilter ? { ...timesheet.data, rows: timesheet.data.rows.filter((r) => r.user_id === userFilter) } : timesheet.data),
+    [timesheet.data, userFilter],
+  );
 
   const shiftsByDate = useMemo(() => {
     const map = new Map<string, Shift[]>();
@@ -90,6 +131,7 @@ const ShiftsPage: React.FC = () => {
     setGeneratorOpen(false);
     shifts.reload();
     monthStats.reload();
+    timesheet.reload();
   };
 
   return (
@@ -99,6 +141,9 @@ const ShiftsPage: React.FC = () => {
         description="Дневные и ночные смены по московскому времени"
         actions={
           <>
+            <Button variant="secondary" icon={FileDown} onClick={() => setExportOpen(true)}>Excel</Button>
+            {/* Загрузка графика меняет смены пачкой — только администратор */}
+            {isAdmin && <Button variant="secondary" icon={FileUp} onClick={() => setImportOpen(true)}>Загрузить</Button>}
             <Button variant="secondary" icon={Wand2} onClick={() => setGeneratorOpen(true)}>
               Автозаполнение
             </Button>
@@ -127,6 +172,26 @@ const ShiftsPage: React.FC = () => {
           )}
         </div>
         <div className="flex flex-col gap-2 xs:flex-row xs:items-center">
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1" role="radiogroup" aria-label="Вид графика">
+            {([
+              ['calendar', 'Календарь', CalendarDays],
+              ['timesheet', 'Табель', Table2],
+            ] as const).map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                role="radio"
+                aria-checked={view === key}
+                onClick={() => setView(key)}
+                className={clsx(
+                  'flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                  view === key ? 'bg-surface text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900',
+                )}
+              >
+                <Icon className="h-4 w-4" aria-hidden /> {label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-3 text-xs text-gray-500">
             <span className="flex items-center gap-1"><Sun className="h-3.5 w-3.5 text-amber-500" /> {stats.total - stats.night}</span>
             <span className="flex items-center gap-1"><Moon className="h-3.5 w-3.5 text-indigo-500" /> {stats.night}</span>
@@ -145,7 +210,18 @@ const ShiftsPage: React.FC = () => {
         </div>
       </div>
 
-      {shifts.loading || users.loading ? (
+      {view === 'timesheet' ? (
+        timesheet.loading || !visibleSheet ? (
+          <PageLoader />
+        ) : (
+          <div className={timesheet.refreshing ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+            <TimesheetTable
+              sheet={visibleSheet}
+              today={isCurrentMonth ? Number(today.slice(8, 10)) : undefined}
+            />
+          </div>
+        )
+      ) : shifts.loading || users.loading ? (
         <PageLoader />
       ) : (
         <AnimatePresence mode="wait" initial={false} custom={direction}>
@@ -182,6 +258,17 @@ const ShiftsPage: React.FC = () => {
       )}
 
       {/* Легенда цветов графика */}
+      {view === 'timesheet' ? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-gray-500">
+          {TIMESHEET_LEGEND.map(([cls, label]) => (
+            <span key={label} className="flex items-center gap-1.5">
+              <span className={`h-3 w-4 rounded-sm border border-gray-300 ${cls}`} aria-hidden />
+              {label}
+            </span>
+          ))}
+          <span>Количество смен — часы, делённые на 12</span>
+        </div>
+      ) : (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-gray-500">
         {[
           ['border-l-amber-500 bg-amber-50', 'Дневная'],
@@ -195,6 +282,7 @@ const ShiftsPage: React.FC = () => {
           </span>
         ))}
       </div>
+      )}
 
       <ShiftStatsPanel title={`Отработано за ${MONTH_NAMES[month.month].toLowerCase()}`} items={monthStats.data?.items ?? []} />
 
@@ -216,6 +304,8 @@ const ShiftsPage: React.FC = () => {
         onClose={() => setGeneratorOpen(false)}
         onApplied={handleSaved}
       />
+      <ScheduleExportModal open={exportOpen} onClose={() => setExportOpen(false)} month={monthKey} />
+      <ScheduleImportModal open={importOpen} onClose={() => setImportOpen(false)} onImported={handleSaved} />
     </div>
   );
 };

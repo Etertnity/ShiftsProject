@@ -74,7 +74,7 @@ const UsersPage: React.FC = () => {
     <div className="space-y-4 sm:space-y-5">
       <PageHeader
         title="Сотрудники"
-        description={users ? `${users.length} ${pluralize(users.length, ['сотрудник', 'сотрудника', 'сотрудников'])} · логины и пароли скрыты` : undefined}
+        description={users ? `${users.length} ${pluralize(users.length, ['сотрудник', 'сотрудника', 'сотрудников'])}` : undefined}
         actions={
           <Button
             icon={UserPlus}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
-import { Moon, Sun, Trash2 } from 'lucide-react';
+import { Lock, Moon, Sun, Trash2 } from 'lucide-react';
 import { shiftsApi } from '../../../api';
 import Avatar from '../../../components/ui/Avatar';
 import Button from '../../../components/ui/Button';
@@ -11,7 +11,7 @@ import { ContactButtons, hasContacts } from '../../../components/users/ContactLi
 import { useCurrentUser } from '../../../context/AuthContext';
 import { useConfirm } from '../../../context/ConfirmContext';
 import { CreateShift, Shift, ShiftType, UserPublic } from '../../../types';
-import { formatDayShort } from '../../../utils/datetime';
+import { formatDayShort, mskDateTime } from '../../../utils/datetime';
 import { getErrorMessage } from '../../../utils/errors';
 import { formatPartTime, formatParts, SHIFT_PRESETS, shiftParts } from '../../../utils/shifts';
 import { pluralize } from '../../../utils/strings';
@@ -78,8 +78,14 @@ const ShiftContacts: React.FC<{ shift: Shift; users: UserPublic[] }> = ({ shift,
   );
 };
 
+/** Смена уже началась — по ней есть факт отработки */
+const hasStarted = (date: string, time: string) => !!date && !!time && mskDateTime(date, time).getTime() <= Date.now();
+
 const ShiftFormModal: React.FC<ShiftFormModalProps> = ({ open, mode, date, shift, users, shifts = [], onClose, onSaved }) => {
   const confirm = useConfirm();
+  const isAdmin = useCurrentUser().is_admin;
+  // Отработку (начавшиеся и прошедшие смены) правит только администратор — сотрудник видит смену без правки
+  const locked = mode === 'edit' && !!shift && !isAdmin && hasStarted(shift.date, shift.start_time);
   const [form, setForm] = useState<FormState>(emptyForm(date));
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [submitted, setSubmitted] = useState(false);
@@ -118,6 +124,7 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({ open, mode, date, shift
     date: !form.date ? 'Укажите дату' : undefined,
     user: mode === 'bulk' ? (selectedUsers.length === 0 ? 'Выберите хотя бы одного сотрудника' : undefined) : !form.user_id ? 'Выберите сотрудника' : undefined,
     time: !form.start_time || !form.end_time ? 'Укажите время' : undefined,
+    past: !isAdmin && !locked && hasStarted(form.date, form.start_time) ? 'Начавшиеся и прошедшие смены добавляет и меняет администратор' : undefined,
   };
   const hasErrors = Object.values(errors).some(Boolean);
 
@@ -185,7 +192,7 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({ open, mode, date, shift
       title={TITLES[mode]}
       description={mode === 'edit' && shift ? `${formatDayShort(shift.date)} · ${shift.segments.length ? formatParts(shift) : shift.user_name}` : undefined}
       footer={
-        tab === 'replace' ? (
+        tab === 'replace' || locked ? (
           <Button variant="secondary" onClick={onClose}>Закрыть</Button>
         ) : (
         <>
@@ -201,7 +208,13 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({ open, mode, date, shift
       }
     >
       {mode === 'edit' && shift && <ShiftContacts shift={shift} users={users} />}
-      {mode === 'edit' && shift && (
+      {locked && (
+        <p className="mb-4 flex items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-600">
+          <Lock className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+          Смена уже началась. Кто и сколько отработал, может поправить только администратор.
+        </p>
+      )}
+      {mode === 'edit' && shift && !locked && (
         <div className="mb-4 flex gap-1 rounded-xl bg-gray-100 p-1" role="tablist">
           {([
             ['details', 'Параметры'],
@@ -226,7 +239,8 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({ open, mode, date, shift
       {mode === 'edit' && shift && tab === 'replace' ? (
         <ShiftReplacePanel shift={shift} users={users} shifts={shifts} onDone={onSaved} />
       ) : (
-      <form id="shift-form" onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <form id="shift-form" onSubmit={handleSubmit} noValidate>
+        <fieldset disabled={locked} className="space-y-4">
         <Field label="Тип смены">
           <div className="grid grid-cols-2 gap-2" role="radiogroup">
             {(['day', 'night'] as ShiftType[]).map((type) => {
@@ -258,7 +272,7 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({ open, mode, date, shift
           </div>
         </Field>
 
-        <Field label="Дата" htmlFor="shift-date" required error={submitted ? errors.date : undefined}>
+        <Field label="Дата" htmlFor="shift-date" required error={submitted ? errors.date : errors.past}>
           <input id="shift-date" type="date" className="form-input" value={form.date} onChange={(e) => update('date', e.target.value)} />
         </Field>
 
@@ -314,6 +328,7 @@ const ShiftFormModal: React.FC<ShiftFormModalProps> = ({ open, mode, date, shift
             onChange={(e) => update('notes', e.target.value)}
           />
         </Field>
+        </fieldset>
       </form>
       )}
     </Modal>

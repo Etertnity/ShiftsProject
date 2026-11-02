@@ -60,7 +60,7 @@ const ExportExcelModal: React.FC<ExportExcelModalProps> = ({ open, onClose }) =>
       open={open}
       onClose={onClose}
       title="Выгрузка в Excel"
-      description="Передачи — в том же виде, что и журнал смен, плюс все кейсы и история изменений"
+      description="Передачи в виде журнала, все кейсы и история изменений"
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Отмена</Button>

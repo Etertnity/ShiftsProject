@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { m } from 'motion/react';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { ArrowRightLeft, CalendarDays, Eye, EyeOff, LogIn, SatelliteDish } from 'lucide-react';
 import Logo from '../../components/layout/Logo';
 import ThemeToggle from '../../components/layout/ThemeToggle';
-import SkyBackground from '../../components/visual/SkyBackground';
+import OceanScene from '../../components/visual/OceanScene';
 import Button from '../../components/ui/Button';
 import Field from '../../components/ui/Field';
 import { useAuth } from '../../context/AuthContext';
@@ -13,7 +13,8 @@ import { getErrorMessage } from '../../utils/errors';
 
 const LoginPage: React.FC = () => {
   const { login } = useAuth();
-  const { isDark } = useTheme();
+  // Сцена по времени суток: днём закат над портом, ночью луна
+  const { isNightTime } = useTheme();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,32 +35,45 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="relative isolate flex min-h-screen items-center justify-center px-4 py-10">
-      {/* Небо по времени суток — тот же шейдер, что в блоке «Сейчас на смене» */}
-      <SkyBackground night={isDark} className="-z-10 !fixed" />
-      <div className="absolute right-3 top-3">
+    // dark — экран входа всегда «ночной» поверх морской сцены
+    <div className="dark relative isolate min-h-screen text-white">
+      <OceanScene night={isNightTime} className="-z-20 !fixed" />
+      {/* Затемнение слева — под текстом и формой */}
+      <div aria-hidden className="fixed inset-0 -z-10 bg-gradient-to-r from-navy-950/85 via-navy-950/45 to-transparent" />
+      <div className="absolute right-3 top-3 z-10">
         <ThemeToggle className="!text-white/80 hover:!bg-white/15 hover:!text-white" />
       </div>
 
       <m.div
-        className="w-full max-w-sm"
-        initial={{ opacity: 0, y: 16, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-10 sm:px-10 lg:px-16"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
-        <Logo inverted className="mb-8 justify-center" />
+        <Logo inverted />
+
+        <h1 className="mt-8 font-display text-4xl font-bold uppercase leading-[0.98] tracking-wide [text-shadow:0_2px_16px_rgb(0_0_0/0.35)] sm:text-5xl">
+          Журнал
+          <span className="block text-accent-400">дежурной смены</span>
+        </h1>
+        <p className="mt-3 max-w-sm text-sm text-white/80">График дежурств, передачи смен, кейсы и потери на VSAT-каналах судов.</p>
+        <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/80">
+          <li className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-accent-400" aria-hidden /> График смен</li>
+          <li className="flex items-center gap-1.5"><ArrowRightLeft className="h-4 w-4 text-accent-400" aria-hidden /> Передачи</li>
+          <li className="flex items-center gap-1.5"><SatelliteDish className="h-4 w-4 text-accent-400" aria-hidden /> Мониторинг каналов</li>
+        </ul>
 
         <m.form
           onSubmit={handleSubmit}
-          className="card space-y-5 p-6 shadow-pop sm:p-8"
+          className="mt-8 space-y-5 rounded-2xl bg-navy-950/60 p-6 shadow-pop ring-1 ring-inset ring-white/10 backdrop-blur-md sm:p-7"
           noValidate
-          // Лёгкое «покачивание» карточки при неверном пароле
+          // Лёгкое «покачивание» формы при неверном пароле
           animate={error ? { x: [0, -8, 8, -5, 5, 0] } : { x: 0 }}
           transition={{ duration: 0.4 }}
         >
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Вход в систему</h1>
-            <p className="mt-1 text-sm text-gray-500">Используйте учётные данные, выданные администратором.</p>
+            <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-gray-900">Вход</h2>
+            <p className="mt-1 text-sm text-gray-500">Логин и пароль выдаёт администратор.</p>
           </div>
 
           {error && (
@@ -112,7 +126,6 @@ const LoginPage: React.FC = () => {
           </Button>
         </m.form>
 
-        <p className="mt-6 text-center text-xs text-white/70">Регистрация отключена — доступ выдаёт администратор.</p>
       </m.div>
     </div>
   );

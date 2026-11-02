@@ -22,9 +22,10 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const readPreference = (): ThemePreference => {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    return value === 'light' || value === 'dark' || value === 'auto' ? value : 'auto';
+    // По умолчанию — «ночной порт»: морской стиль задуман тёмным. Светлую или авто можно выбрать в меню
+    return value === 'light' || value === 'dark' || value === 'auto' ? value : 'dark';
   } catch {
-    return 'auto';
+    return 'dark';
   }
 };
 

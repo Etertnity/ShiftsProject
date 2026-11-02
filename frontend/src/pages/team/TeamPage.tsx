@@ -46,7 +46,7 @@ const TeamPage: React.FC = () => {
         title="Команда"
         description={
           users
-            ? `${total} ${pluralize(total, ['сотрудник', 'сотрудника', 'сотрудников'])} · контакты, которые коллеги открыли для всех`
+            ? `${total} ${pluralize(total, ['сотрудник', 'сотрудника', 'сотрудников'])} и их рабочие контакты`
             : undefined
         }
       />
