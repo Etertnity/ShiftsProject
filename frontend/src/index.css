@@ -53,6 +53,12 @@
     @apply mb-1.5 block text-sm font-medium text-gray-700;
   }
 
+  /* Фон с глобусом: отдельный слой, его перерисовка не задевает страницу */
+  .vsat-backdrop {
+    contain: strict;
+    will-change: transform;
+  }
+
   .text-wrap-force {
     overflow-wrap: anywhere;
     word-break: break-word;

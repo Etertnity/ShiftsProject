@@ -4,6 +4,7 @@ import { AnimatePresence, m } from 'motion/react';
 import BottomNav from './BottomNav';
 import MobileTopBar from './MobileTopBar';
 import Sidebar from './Sidebar';
+import VsatBackdrop from '../visual/VsatBackdrop';
 
 const AppLayout: React.FC = () => {
   const { pathname } = useLocation();
@@ -17,6 +18,7 @@ const AppLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen">
+      <VsatBackdrop />
       <Sidebar />
       <MobileTopBar />
       <main className="lg:pl-64">
