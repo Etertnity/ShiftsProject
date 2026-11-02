@@ -51,7 +51,7 @@ export interface CreateAssetEntry {
   shift_id?: number | null;
 }
 
-export type AssetSort = 'updated_desc' | 'updated_asc' | 'created_desc' | 'created_asc' | 'title';
+export type AssetSort = 'updated_desc' | 'updated_asc' | 'created_desc' | 'created_asc' | 'title' | 'number_asc' | 'number_desc';
 
 export interface AssetFilters {
   asset_type?: string;

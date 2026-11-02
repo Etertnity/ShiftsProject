@@ -22,6 +22,8 @@ export const SORT_OPTIONS: { value: AssetSort; label: string }[] = [
   { value: 'created_desc', label: 'Сначала новые' },
   { value: 'created_asc', label: 'Сначала старые' },
   { value: 'title', label: 'По названию' },
+  { value: 'number_desc', label: 'По номеру кейса: от большего' },
+  { value: 'number_asc', label: 'По номеру кейса: от меньшего' },
 ];
 
 /** Период → границы для API. «Без движения» — кейсы, которые не обновлялись больше недели. */

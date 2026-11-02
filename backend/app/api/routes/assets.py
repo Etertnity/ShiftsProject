@@ -16,6 +16,7 @@ from app.schemas.asset import AssetClearResult, AssetCreate, AssetEntryCreate, A
 from app.schemas.common import Message
 from app.services import catalog
 from app.services.asset_history import add_entry
+from app.services.case_numbers import by_case_number
 
 router = APIRouter(prefix="/api/assets", tags=["assets"])
 
@@ -50,8 +51,10 @@ SORTS = {
     "updated_asc": (Asset.updated_at.asc(), Asset.id.asc()),
     "created_desc": (Asset.created_at.desc(), Asset.id.desc()),
     "created_asc": (Asset.created_at.asc(), Asset.id.asc()),
-    # Название сортируем в Python: lower() в SQLite не понимает кириллицу
+    # Название и номер кейса сортируем в Python: lower() в SQLite не понимает кириллицу, номер — часть названия
     "title": (Asset.id.asc(),),
+    "number_asc": (Asset.id.asc(),),
+    "number_desc": (Asset.id.asc(),),
 }
 
 
@@ -71,7 +74,7 @@ def list_assets(
     updated_to: Optional[date] = None,
     # Кейсы, в истории которых есть записи этого сотрудника («мои кейсы»)
     author_id: Optional[int] = None,
-    sort: Literal["updated_desc", "updated_asc", "created_desc", "created_asc", "title"] = "updated_desc",
+    sort: Literal["updated_desc", "updated_asc", "created_desc", "created_asc", "title", "number_asc", "number_desc"] = "updated_desc",
     db: Session = Depends(get_db),
     _: User = Depends(get_current_active_user),
 ):
@@ -90,6 +93,8 @@ def list_assets(
     assets = query.order_by(*SORTS[sort]).all()
     if sort == "title":
         assets.sort(key=lambda a: a.title.casefold())
+    elif sort in ("number_asc", "number_desc"):
+        assets = by_case_number(assets, lambda a: a.title, descending=sort == "number_desc")
     if search and search.strip():
         # SQLite ILIKE не учитывает регистр только для латиницы, поэтому кириллицу сравниваем в Python.
         # Ищем и в истории: «что сделано» по кейсу тоже находится

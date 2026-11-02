@@ -251,3 +251,14 @@ def test_clear_assets_and_handovers_for_reimport(client, admin_headers, user_hea
     # После очистки тот же файл загружается заново целиком
     again = upload(client, admin_headers, "/api/exchange/import", make_workbook()).json()
     assert again["handovers"] == 2 and again["assets_created"] == 5
+
+
+def test_export_lists_cases_by_number_bottom_up(client, admin_headers, user_headers):
+    """В ячейке журнала кейсы снизу вверх по возрастанию номера: сверху — самый большой."""
+    rows = [["18.10.2026 09:00 -\n18.10.2026 21:00", "Работник",
+             "1) Open CASE#20 Bravo - b\n2) Open CASE#300 Kilo - k\n3) Open CASE#5 Echo - e", None, "", "", ""]]
+    upload(client, admin_headers, "/api/exchange/import", make_workbook(rows=rows))
+    sheet = load_workbook(io.BytesIO(client.get("/api/exchange/export.xlsx", headers=user_headers).content))["Передачи"]
+    lines = sheet["C2"].value.split("\n")
+    assert [line.split(" ")[2] for line in lines] == ["CASE#300", "CASE#20", "CASE#5"]
+    assert [line.split(")")[0] for line in lines] == ["1", "2", "3"]

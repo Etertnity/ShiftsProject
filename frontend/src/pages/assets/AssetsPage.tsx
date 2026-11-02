@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
-import { FileDown, Package, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ArrowDown01, ArrowDown10, FileDown, Hash, Package, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { assetsApi, usersApi } from '../../api';
 import AssetDetailModal from '../../components/assets/AssetDetailModal';
 import ClearDataModal from '../../components/exchange/ClearDataModal';
@@ -64,6 +64,7 @@ const AssetsPage: React.FC = () => {
   // Список коллег для фильтра «Кто работал» — загружаем, только когда фильтры открыты
   const { data: users } = useAsyncData(() => (extraOpen ? usersApi.getAllPublic() : Promise.resolve(null)), [extraOpen], 'Не удалось загрузить сотрудников');
   const extraCount = activeExtraCount(extra);
+  const numberSort = extra.sort === 'number_desc' || extra.sort === 'number_asc';
 
   const assets = useMemo(
     () => (status === OPEN ? (data ?? []).filter((a) => isOpenStatus(a.status)) : data ?? []),
@@ -143,6 +144,28 @@ const AssetsPage: React.FC = () => {
                 <option key={s.key} value={s.key}>{s.name}</option>
               ))}
             </select>
+            {/* Быстрая сортировка по номеру кейса: от большего → от меньшего → как было */}
+            <Button
+              variant={numberSort ? 'primary' : 'secondary'}
+              icon={extra.sort === 'number_desc' ? ArrowDown10 : extra.sort === 'number_asc' ? ArrowDown01 : Hash}
+              aria-label="Сортировка по номеру кейса"
+              title={
+                extra.sort === 'number_desc'
+                  ? 'Номер кейса: от большего к меньшему'
+                  : extra.sort === 'number_asc'
+                    ? 'Номер кейса: от меньшего к большему'
+                    : 'Сортировать по номеру кейса'
+              }
+              onClick={() =>
+                setExtra((prev) => ({
+                  ...prev,
+                  sort: prev.sort === 'number_desc' ? 'number_asc' : prev.sort === 'number_asc' ? DEFAULT_EXTRA.sort : 'number_desc',
+                }))
+              }
+              className="shrink-0"
+            >
+              №
+            </Button>
             <Button
               variant={extraOpen || extraCount ? 'primary' : 'secondary'}
               icon={SlidersHorizontal}

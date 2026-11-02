@@ -40,6 +40,7 @@ from app.models import (
     User,
 )
 from app.services import catalog
+from app.services.case_numbers import by_case_number
 from app.services.schedule import shift_interval
 
 # --- Ограничения на загружаемый файл: защита от «zip-бомб» и слишком тяжёлых файлов ---
@@ -258,11 +259,14 @@ def export_workbook(db: Session, date_from: Optional[date], date_to: Optional[da
             person = authors[0] if authors else ""
         _set_text(ws.cell(row=row, column=1), period)
         _set_text(ws.cell(row=row, column=2), person)
+        # В ячейке кейсы идут снизу вверх по возрастанию номера: сверху — самый большой номер
+        row_assets = by_case_number(
+            (assets[a] for a in links.get(handover.id, []) if a in assets), lambda a: a.title, descending=True,
+        )
         for col, category in enumerate(ctx.categories, start=3):
             lines = []
-            for asset_id in links.get(handover.id, []):
-                asset = assets.get(asset_id)
-                if not asset or asset.asset_type != category.key:
+            for asset in row_assets:
+                if asset.asset_type != category.key:
                     continue
                 entries = entries_by.get((handover.id, asset.id), [])
                 texts = [_one_line(e.text) for e in entries if e.text]

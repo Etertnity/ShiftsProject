@@ -44,3 +44,18 @@ def test_updated_period(client, admin_headers):
     assert titles(client, admin_headers, updated_from=(today - timedelta(days=1)).isoformat()) == ["Свежий"]
     assert titles(client, admin_headers, updated_to=(today - timedelta(days=2)).isoformat()) == []
     assert titles(client, admin_headers, updated_from=(today + timedelta(days=2)).isoformat()) == []
+
+
+def test_sort_by_case_number(client, user_headers):
+    """Номер берётся из «CASE#…» или из числа в названии; кейсы без номера — в конце при любом направлении."""
+    for title in ("CASE#1750882 Arctic", "392923 Gustav", "CASE#100 Alpha", "Без номера"):
+        response = client.post("/api/assets/", headers=user_headers, json={
+            "title": title, "description": "проверка", "asset_type": "CASE",
+        })
+        assert response.status_code == 200, response.text
+
+    def titles(sort):
+        return [a["title"] for a in client.get("/api/assets/", headers=user_headers, params={"sort": sort}).json()]
+
+    assert titles("number_desc") == ["CASE#1750882 Arctic", "392923 Gustav", "CASE#100 Alpha", "Без номера"]
+    assert titles("number_asc") == ["CASE#100 Alpha", "392923 Gustav", "CASE#1750882 Arctic", "Без номера"]
