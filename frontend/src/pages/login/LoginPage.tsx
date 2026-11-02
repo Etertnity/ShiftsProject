@@ -37,15 +37,15 @@ const LoginPage: React.FC = () => {
   return (
     // dark — экран входа всегда «ночной» поверх морской сцены
     <div className="dark relative isolate min-h-screen text-white">
-      <OceanScene night={isNightTime} className="-z-20 !fixed" />
-      {/* Затемнение слева — под текстом и формой */}
-      <div aria-hidden className="fixed inset-0 -z-10 bg-gradient-to-r from-navy-950/85 via-navy-950/45 to-transparent" />
+      <OceanScene night={isNightTime} shipSide="left" className="-z-20 !fixed" />
+      {/* Затемнение к центру — под заголовком и формой */}
+      <div aria-hidden className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgb(5_13_25/0.8)_0%,rgb(5_13_25/0.45)_45%,rgb(5_13_25/0.15)_100%)]" />
       <div className="absolute right-3 top-3 z-10">
         <ThemeToggle className="!text-white/80 hover:!bg-white/15 hover:!text-white" />
       </div>
 
       <m.div
-        className="flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-10 sm:px-10 lg:px-16"
+        className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center px-5 py-10 text-center"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -57,7 +57,7 @@ const LoginPage: React.FC = () => {
           <span className="block text-accent-400">дежурной смены</span>
         </h1>
         <p className="mt-3 max-w-sm text-sm text-white/80">График дежурств, передачи смен, кейсы и потери на VSAT-каналах судов.</p>
-        <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-white/80">
+        <ul className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-white/80">
           <li className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-accent-400" aria-hidden /> График смен</li>
           <li className="flex items-center gap-1.5"><ArrowRightLeft className="h-4 w-4 text-accent-400" aria-hidden /> Передачи</li>
           <li className="flex items-center gap-1.5"><SatelliteDish className="h-4 w-4 text-accent-400" aria-hidden /> Мониторинг каналов</li>
@@ -65,7 +65,7 @@ const LoginPage: React.FC = () => {
 
         <m.form
           onSubmit={handleSubmit}
-          className="mt-8 space-y-5 rounded-2xl bg-navy-950/60 p-6 shadow-pop ring-1 ring-inset ring-white/10 backdrop-blur-md sm:p-7"
+          className="mt-8 w-full space-y-5 rounded-2xl bg-navy-950/70 text-left p-6 shadow-pop ring-1 ring-inset ring-white/10 backdrop-blur-md sm:p-7"
           noValidate
           // Лёгкое «покачивание» формы при неверном пароле
           animate={error ? { x: [0, -8, 8, -5, 5, 0] } : { x: 0 }}

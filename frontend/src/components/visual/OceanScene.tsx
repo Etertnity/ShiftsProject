@@ -9,6 +9,8 @@ interface OceanSceneProps {
   className?: string;
   /** Компактная сцена (баннеры): судно меньше, без порта */
   compact?: boolean;
+  /** Где идёт судно: справа (баннеры) или слева (экран входа — форма по центру) */
+  shipSide?: 'left' | 'right';
 }
 
 /**
@@ -16,7 +18,7 @@ interface OceanSceneProps {
  * контейнеровоз с VSAT-антенной и наземная станция у порта. Силуэты стоят точно на линии горизонта
  * шейдера. Всё декоративное — скрыто от экранных дикторов.
  */
-const OceanScene: React.FC<OceanSceneProps> = ({ night, className, compact }) => {
+const OceanScene: React.FC<OceanSceneProps> = ({ night, className, compact, shipSide = 'right' }) => {
   const waterline = `${HORIZON * 100}%`;
   return (
     <div aria-hidden className={clsx('pointer-events-none absolute inset-0 overflow-hidden', className)}>
@@ -37,7 +39,14 @@ const OceanScene: React.FC<OceanSceneProps> = ({ night, className, compact }) =>
 
       {/* Судно: ватерлиния (y=124 из 140) совпадает с горизонтом; лёгкая качка */}
       <div
-        className={clsx('absolute', compact ? 'right-[4%] w-[clamp(180px,34%,360px)]' : 'right-[14%] w-[clamp(240px,44%,600px)]')}
+        className={clsx(
+          'absolute',
+          compact
+            ? 'right-[4%] w-[clamp(180px,34%,360px)]'
+            : shipSide === 'left'
+              ? 'left-[5%] w-[clamp(220px,30%,560px)]'
+              : 'right-[14%] w-[clamp(240px,44%,600px)]',
+        )}
         style={{ bottom: waterline }}
       >
         {/* Ватерлиния на y=124 из 140: опускаем судно на 16/140 его высоты, чтобы корпус «сидел» в воде */}

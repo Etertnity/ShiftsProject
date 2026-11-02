@@ -18,16 +18,16 @@ const ForcePasswordChange: React.FC = () => {
 
   return (
     <div className="dark relative isolate min-h-screen text-white">
-      <OceanScene night={isNightTime} className="-z-20 !fixed" />
-      <div aria-hidden className="fixed inset-0 -z-10 bg-gradient-to-r from-navy-950/85 via-navy-950/45 to-transparent" />
+      <OceanScene night={isNightTime} shipSide="left" className="-z-20 !fixed" />
+      <div aria-hidden className="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgb(5_13_25/0.8)_0%,rgb(5_13_25/0.45)_45%,rgb(5_13_25/0.15)_100%)]" />
       <m.div
-        className="flex min-h-screen w-full max-w-xl flex-col justify-center px-5 py-10 sm:px-10 lg:px-16"
+        className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center px-5 py-10 text-center"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
       >
         <Logo inverted className="mb-8" />
-        <div className="space-y-5 rounded-2xl bg-navy-950/60 p-6 shadow-pop ring-1 ring-inset ring-white/10 backdrop-blur-md sm:p-7">
+        <div className="w-full space-y-5 rounded-2xl bg-navy-950/70 text-left p-6 shadow-pop ring-1 ring-inset ring-white/10 backdrop-blur-md sm:p-7">
           <div className="flex gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
               <ShieldAlert className="h-5 w-5" />
@@ -41,7 +41,7 @@ const ForcePasswordChange: React.FC = () => {
           </div>
           <ChangePasswordForm currentLabel="Временный пароль" onChanged={() => setUser({ ...user, must_change_password: false })} />
         </div>
-        <button type="button" onClick={logout} className="mt-6 flex items-center gap-1.5 self-start text-sm text-white/80 hover:text-white">
+        <button type="button" onClick={logout} className="mt-6 flex items-center gap-1.5 text-sm text-white/80 hover:text-white">
           <LogOut className="h-4 w-4" /> Выйти
         </button>
       </m.div>
