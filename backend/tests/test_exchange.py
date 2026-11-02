@@ -189,3 +189,45 @@ def test_export_neutralizes_formulas(client, user_headers):
     # Текст, похожий на формулу, сохраняется как строка — Excel не выполнит его
     assert row[2].data_type == "s" and row[2].value.startswith("=HYPERLINK")
     assert row[3].data_type == "s"
+
+
+def test_case_status_follows_last_handover_in_file(client, admin_headers, user_headers):
+    """Открыты только кейсы из последней передачи файла без Close; журнал может идти «новые сверху»."""
+    site_only = client.post("/api/assets/", headers=user_headers, json={
+        "title": "CASE#777 Site", "description": "заведён на сайте", "asset_type": "CASE",
+    })
+    assert site_only.status_code == 200, site_only.text
+    newest_first = [
+        ["19.10.2026 09:00 -\n19.10.2026 21:00", "Работник",
+         "1) Continue CASE#300 Kilo - ждём Оранж\n2) Close CASE#301 Lima - восстановились", None, "", "", ""],
+        ["18.10.2026 21:00 -\n19.10.2026 09:00", "Работник",
+         "1) Continue CASE#300 Kilo - ждём Оранж\n2) Continue CASE#301 Lima - смотрим\n3) Continue CASE#302 Mike - смотрим",
+         None, "", "", ""],
+        ["18.10.2026 09:00 -\n18.10.2026 21:00", "Работник",
+         "1) Open CASE#300 Kilo - ждём Оранж\n2) Open CASE#301 Lima - смотрим\n3) Open CASE#302 Mike - смотрим",
+         None, "", "", ""],
+    ]
+    result = upload(client, admin_headers, "/api/exchange/import", make_workbook(rows=newest_first)).json()
+    assert result["handovers"] == 3
+    assert result["last_handover"] == "19.10.2026 21:00"
+
+    def statuses():
+        assets = client.get("/api/assets/", headers=user_headers, params={"include_closed": True}).json()
+        return {a["title"]: a["status"] for a in assets}
+
+    current = statuses()
+    assert current["CASE#300 Kilo"] == "Active"     # есть в последней передаче
+    assert current["CASE#301 Lima"] in CLOSED       # Close в последней передаче, хоть ниже по файлу и Continue
+    assert current["CASE#302 Mike"] in CLOSED       # в последней передаче его уже нет
+    assert current["CASE#777 Site"] == "Active"     # кейсы, которых нет в файле, не трогаем
+    assert result["assets_closed"] == 1             # Mike закрыт правилом; Lima — самой передачей
+
+    # Кейс открыли на сайте — повторная загрузка того же файла снова приводит его к последней передаче
+    mike = next(a for a in client.get("/api/assets/", headers=user_headers, params={"include_closed": True}).json()
+                if a["title"] == "CASE#302 Mike")
+    client.put(f"/api/assets/{mike['id']}", headers=admin_headers, json={**{k: mike[k] for k in (
+        "title", "description", "asset_type", "custom_fields")}, "status": "Active"})
+    assert statuses()["CASE#302 Mike"] == "Active"
+    again = upload(client, admin_headers, "/api/exchange/import", make_workbook(rows=newest_first)).json()
+    assert again["handovers"] == 0 and again["assets_closed"] == 1
+    assert statuses()["CASE#302 Mike"] in CLOSED

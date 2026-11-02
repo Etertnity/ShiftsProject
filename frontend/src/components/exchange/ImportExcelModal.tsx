@@ -116,6 +116,12 @@ const ImportExcelModal: React.FC<ImportExcelModalProps> = ({ open, onClose, onIm
           `новых кейсов ${result.assets_created}, обновлено ${result.assets_updated}`,
         { duration: 6000 },
       );
+      if (result.last_handover && (result.assets_closed || result.assets_reopened)) {
+        toast.success(
+          `По последней передаче (${result.last_handover}): закрыто ${result.assets_closed}, снова открыто ${result.assets_reopened}`,
+          { duration: 6000 },
+        );
+      }
       if (result.errors.length) toast.error(`Пропущено строк с ошибками: ${result.errors.length}`);
       onImported();
       onClose();
@@ -267,8 +273,9 @@ const ImportExcelModal: React.FC<ImportExcelModalProps> = ({ open, onClose, onIm
                 </div>
               )}
               <p className="text-xs text-gray-500">
-                Кейсы находятся по номеру CASE# внутри категории; новые создаются. Open — кейс открыт, Close — закрыт,
-                Continue — запись в историю, если текст изменился.
+                Кейсы находятся по номеру CASE# внутри категории; новые создаются. Continue — запись в историю, если
+                текст изменился. Открытыми остаются только кейсы из последней передачи в файле без пометки Close —
+                остальные кейсы из файла закрываются.
               </p>
             </>
           )}

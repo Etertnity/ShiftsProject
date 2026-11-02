@@ -37,3 +37,6 @@ class ImportResult(BaseModel):
     assets_created: int
     assets_updated: int
     entries: int
+    assets_closed: int = 0
+    assets_reopened: int = 0
+    last_handover: Optional[str] = None

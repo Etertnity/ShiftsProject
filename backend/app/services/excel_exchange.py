@@ -637,6 +637,10 @@ class ImportStats:
     assets_created: int = 0
     assets_updated: int = 0
     entries: int = 0
+    # Статусы, выставленные по последней передаче файла
+    assets_closed: int = 0
+    assets_reopened: int = 0
+    last_handover: Optional[str] = None
 
 
 class _AssetIndex:
@@ -721,7 +725,9 @@ def apply_import(db: Session, content: bytes, mapping_raw: Optional[str], import
     for entry in db.query(AssetEntry).filter(AssetEntry.text.isnot(None)).order_by(AssetEntry.id).all():
         last_text[entry.asset_id] = _norm(entry.text)
 
-    for row in parsed:
+    # Журнал часто ведут «новые сверху» — применяем передачи по времени, иначе более старое
+    # «Continue» снова открыло бы кейс, закрытый позже
+    for row in sorted(parsed, key=lambda r: r.start or datetime.min):
         if row.error:
             stats.errors.append(f"Строка {row.row}: {row.error}")
             continue
@@ -792,6 +798,58 @@ def apply_import(db: Session, content: bytes, mapping_raw: Optional[str], import
                     db.add(HandoverAsset(handover_id=handover.id, asset_id=asset.id))
                     linked.add(asset.id)
 
+    db.flush()
+    _sync_with_last_handover(db, parsed, index, closed, closed_status, default_status, importer, stats)
     db.commit()
     stats.assets_updated = len(touched) - stats.assets_created if touched else 0
+    stats.errors.sort(key=lambda text: int(re.search(r"\d+", text).group()))
     return stats
+
+
+def _sync_with_last_handover(db: Session, parsed: List[ParsedRow], index: "_AssetIndex", closed: set,
+                             closed_status: str, default_status: str, importer: User, stats: ImportStats) -> None:
+    """
+    Актуальность кейсов из файла — по последней передаче в нём: кейс открыт, только если он есть
+    в последней передаче и не помечен Close / Open-Close; остальные кейсы из файла закрыты.
+    Работает и при повторной загрузке того же файла (уже загруженные строки тоже учитываются).
+    Кейсы, которых в файле нет вовсе (заведены на сайте), не трогаем.
+    """
+    rows = [r for r in parsed if not r.error and r.start]
+    if not rows:
+        return
+    last = max(rows, key=lambda r: r.start)  # при равном времени — первая из них в файле
+    stats.last_handover = _fmt(last.end or last.start)
+
+    in_file: Dict[int, Asset] = {}
+    in_last: set = set()
+    closed_in_last: set = set()
+    for row in rows:
+        for category_key, items in row.items.items():
+            for item in items:
+                asset = index.find(category_key, item)
+                if asset is None:
+                    continue
+                in_file[asset.id] = asset
+                if row is last:
+                    in_last.add(asset.id)
+                    if item.action in ("close", "open-close"):
+                        closed_in_last.add(asset.id)
+    still_open = in_last - closed_in_last
+
+    when = _to_utc(last.end or last.start)
+    note = f"По последней передаче из Excel ({stats.last_handover})"
+    for asset_id, asset in in_file.items():
+        is_closed = asset.status in closed
+        should_close = asset_id not in still_open
+        if should_close == is_closed:
+            continue
+        old, new = asset.status, closed_status if should_close else default_status
+        asset.status = new
+        asset.updated_at = max(asset.updated_at or when, when)
+        db.add(AssetEntry(asset_id=asset.id, kind="status", text=note, old_status=old, new_status=new,
+                          author_id=importer.id, author_name=importer.name, created_at=when))
+        stats.entries += 1
+        if should_close:
+            stats.assets_closed += 1
+        else:
+            stats.assets_reopened += 1

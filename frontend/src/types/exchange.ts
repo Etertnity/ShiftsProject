@@ -34,4 +34,8 @@ export interface ImportResult {
   assets_created: number;
   assets_updated: number;
   entries: number;
+  /** Статусы, выставленные по последней передаче файла */
+  assets_closed: number;
+  assets_reopened: number;
+  last_handover: string | null;
 }
