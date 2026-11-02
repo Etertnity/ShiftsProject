@@ -156,6 +156,9 @@ setup_firewall() {
 deploy() {
     log "Собираю и запускаю контейнеры (первый раз — несколько минут)..."
     $COMPOSE up -d --build --remove-orphans
+    # nginx узнаёт адреса backend и frontend только при старте, а после пересборки они меняются —
+    # без перезапуска он продолжает слать запросы на старые адреса и отвечает 502
+    $COMPOSE restart nginx
     log "Жду, пока сайт ответит..."
     for _ in $(seq 1 30); do
         if curl -fsk https://localhost/healthz >/dev/null 2>&1; then
